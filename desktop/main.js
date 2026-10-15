@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, screen } = require('electron');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -35,14 +35,68 @@ function serve() {
 
 if(!app.requestSingleInstanceLock()) app.quit();
 
+// The window remembers where it was, how big it was and whether it was maximised (per profile).
+const STATE_FILE = () => path.join(app.getPath('userData'), 'window-state.json');
+
+function loadWindowState() {
+  const fallback = {width: 1280, height: 860};
+  try {
+    const state = JSON.parse(fs.readFileSync(STATE_FILE(), 'utf8'));
+    const width = Math.max(400, state.width | 0);
+    const height = Math.max(500, state.height | 0);
+    const result = {width, height, isMaximized: !!state.isMaximized, isFullScreen: !!state.isFullScreen};
+    // the saved spot is used only while it is still on some connected display (a monitor may have been unplugged)
+    if(Number.isFinite(state.x) && Number.isFinite(state.y)) {
+      const visible = screen.getAllDisplays().some(({workArea: a}) => (
+        state.x < a.x + a.width - 50 && state.x + width > a.x + 50 && state.y >= a.y - 10 && state.y < a.y + a.height - 50
+      ));
+      if(visible) {
+        result.x = state.x;
+        result.y = state.y;
+      }
+    }
+    return result;
+  } catch {
+    return fallback;
+  }
+}
+
+function trackWindowState(win, initial) {
+  let timer;
+  // minimising a maximised window must not forget that it was maximised, so these follow only their own events
+  let isMaximized = !!initial.isMaximized;
+  let isFullScreen = !!initial.isFullScreen;
+  win.on('maximize', () => { isMaximized = true; });
+  win.on('unmaximize', () => { isMaximized = false; });
+  win.on('enter-full-screen', () => { isFullScreen = true; });
+  win.on('leave-full-screen', () => { isFullScreen = false; });
+  const save = () => {
+    if(win.isDestroyed()) return;
+    const state = {isMaximized, isFullScreen};
+    // the restored (non-maximised) bounds are what has to come back after un-maximising
+    Object.assign(state, win.getNormalBounds());
+    try { fs.writeFileSync(STATE_FILE(), JSON.stringify(state)); } catch {}
+  };
+  const saveSoon = () => { clearTimeout(timer); timer = setTimeout(save, 400); };
+  ['resize', 'move', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach((e) => win.on(e, saveSoon));
+  win.on('close', save);
+}
+
 app.whenReady().then(async () => {
   const serverReady = serve(); // the server starts while the window is being created
   Menu.setApplicationMenu(null);
+  const state = loadWindowState();
   const win = new BrowserWindow({
-    width: 1280, height: 860, minWidth: 400, minHeight: 500,
+    width: state.width, height: state.height, x: state.x, y: state.y, minWidth: 400, minHeight: 500,
     title: PROFILE ? 'TelegramAll (' + PROFILE + ')' : 'TelegramAll', icon: path.join(__dirname, 'build', 'icon.png'),
-    backgroundColor: '#ffffff', autoHideMenuBar: true
+    backgroundColor: '#ffffff', autoHideMenuBar: true, show: false
   });
+  win.once('ready-to-show', () => {
+    if(state.isMaximized) win.maximize();
+    if(state.isFullScreen) win.setFullScreen(true);
+    win.show();
+  });
+  trackWindowState(win, state);
   // Chats, messages and contacts stay in IndexedDB between runs, so the app opens from the local copy and only
   // fetches updates. The code caches are dropped only when the app build itself changed.
   const stampFile = path.join(app.getPath('userData'), 'build-stamp.txt');
