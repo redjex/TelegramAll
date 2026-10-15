@@ -1,0 +1,42 @@
+# --- build output and dependencies ---
+node_modules/
+**/node_modules/
+tweb/dist/
+desktop/release/
+desktop/dist/
+*.log
+
+# --- personal data: accounts, sessions, keys -------------------------------------------
+# The app keeps logins, chats and caches in %APPDATA%\TelegramAll (outside this folder),
+# but if any of it ever lands here, git must not take it.
+IndexedDB/
+Local Storage/
+Session Storage/
+Service Worker/
+Network/
+Cache/
+Code Cache/
+GPUCache/
+*.session
+*.session-journal
+session_name.session
+auth_key*
+*.pem
+*.p12
+*.pfx
+*.key
+.env.local
+.env.*.local
+secrets.*
+build-stamp.txt
+
+# --- tooling and temporary files ---
+.claude/settings.local.json
+*.tmp.js
+*.tmp
+.vscode/
+.idea/
+.DS_Store
+
+# upstream tweb git metadata, kept aside locally
+tweb/.git-upstream/

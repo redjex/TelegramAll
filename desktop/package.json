@@ -1,0 +1,45 @@
+{
+  "name": "telegram-desktop-web",
+  "version": "1.0.0",
+  "description": "Telegram Web K as native desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win dir"
+  },
+  "keywords": [],
+  "author": "me",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3"
+  },
+  "productName": "TelegramAll",
+  "build": {
+    "appId": "org.telegram.webk.desktop",
+    "productName": "TelegramAll",
+    "icon": "build/icon.png",
+    "files": [
+      "main.js",
+      "build/icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "../tweb/dist",
+        "to": "dist",
+        "filter": [
+          "**/*",
+          "!**/*.map"
+        ]
+      }
+    ],
+    "win": {
+      "target": "dir",
+      "icon": "build/icon.png"
+    },
+    "directories": {
+      "output": "release"
+    }
+  }
+}
