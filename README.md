@@ -18,6 +18,10 @@ npm install
 npx electron-builder --win dir   # desktop/release/win-unpacked/TelegramAll.exe
 ```
 
+## Separate test profile
+
+`TelegramAll.exe --profile=dev` (or `npm run dev` in `desktop/`) runs the same code with its own logins, chats and caches in `%APPDATA%TelegramAll-dev` and its own local port, so it can run next to the main profile and never touches it.
+
 Logins, chats, contacts and caches are stored outside the repository, in `%APPDATA%\TelegramAll`, and are never committed (see `.gitignore` and the `pre-commit` hook).
 
 ## License
