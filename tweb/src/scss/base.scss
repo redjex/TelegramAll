@@ -1622,6 +1622,22 @@ hr {
   }
 }
 
+// a wallet address in a message: bold, underlined only under the pointer, free to break anywhere
+.anchor-url.anchor-wallet {
+  font-weight: var(--font-weight-bold);
+  word-break: break-all;
+
+  &,
+  &:link,
+  &:visited {
+    text-decoration: none !important;
+  }
+
+  &:hover {
+    text-decoration: underline !important;
+  }
+}
+
 .verified-icon {
   &-svg {
     width: 1rem;

@@ -4,7 +4,8 @@ import copy from '@helpers/object/copy';
 import encodeEntities from '@helpers/string/encodeEntities';
 import {MessageEntity} from '@layer';
 import encodeSpoiler from '@lib/richTextProcessor/encodeSpoiler';
-import parseEntities from '@lib/richTextProcessor/parseEntities';
+import parseEntities, {findWalletEntities, WALLET_EXPLORER_URL} from '@lib/richTextProcessor/parseEntities';
+import sortEntities from '@lib/richTextProcessor/sortEntities';
 import setBlankToAnchor from '@lib/richTextProcessor/setBlankToAnchor';
 import setExternalToAnchor, {getElectronHelpers} from '@helpers/electronHelpers';
 import wrapUrl from '@lib/richTextProcessor/wrapUrl';
@@ -162,13 +163,14 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
 
   const disabledEntities = options.disabledEntities;
   if(disabledEntities && !options.nasty) {
-    const entities = options.entities ?? parseEntities(text);
+    const entities = options.entities ?? parseEntities(text, {wallets: true});
     options.entities = filterDisabledEntities(entities, disabledEntities);
     if(options.entities.length !== entities.length) {
       options.onEntitiesDisabled?.();
     }
   }
 
+  const isOutermostCall = !options.nasty;
   const nasty = options.nasty ??= {
     i: 0,
     usedLength: 0,
@@ -204,7 +206,16 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
   const customEmojis = options.customEmojis ??= new Map() as Map<DocId, CustomEmojiElements>;
   const customWraps = options.customWraps ??= new Set();
 
-  const entities = options.entities ??= parseEntities(nasty.text);
+  let entities = options.entities ??= parseEntities(nasty.text, {wallets: true});
+  // The entities handed in may predate wallet addresses (a message stored earlier, or replaced when the
+  // server answered), so the text is looked at again; what another entity covers is left alone.
+  if(isOutermostCall && !options.noLinks && !options.wrappingDraft && !options.disabledEntities && !options.noNavigation) {
+    const walletEntities = findWalletEntities(nasty.text, entities);
+    if(walletEntities.length) {
+      entities = options.entities = [...entities, ...walletEntities];
+      sortEntities(entities);
+    }
+  }
 
   const passEntities = options.passEntities ??= {};
   const contextSite = options.contextSite ??= 'Telegram';
@@ -621,16 +632,23 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
       }
 
       case 'messageEntityUrl':
+      case 'messageEntityTonAddress': // the server marks wallet addresses itself; they get the same menu
       case 'messageEntityTextUrl': {
         if(!(options.noLinks && !passEntities[entity._])) {
           // let inner: string;
-          let url: string = (entity as MessageEntity.messageEntityTextUrl).url || fullEntityText;
+          const isWallet = entity._ === 'messageEntityTonAddress' || !!(entity as {walletAddress?: boolean}).walletAddress;
+          let url: string = entity._ === 'messageEntityTonAddress' ?
+            WALLET_EXPLORER_URL + fullEntityText :
+            (entity as MessageEntity.messageEntityTextUrl).url || fullEntityText;
           let masked = false;
           let onclick: string;
 
           const wrapped = wrapUrl(url, (entity as MessageEntity.messageEntityTextUrl).safe);
           url = wrapped.url;
           onclick = wrapped.onclick;
+
+          // a wallet address opens its own menu: explorer, send, copy
+          if(isWallet) onclick = 'showWalletMenu';
 
           if(options.whitelistedDomains && !isWhitelistedUrl(url, options.whitelistedDomains)) {
             break;
@@ -645,11 +663,11 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
             }
 
             // a host the server vouches for opens at once, whatever text it hides under
-            if(url !== fullEntityText && !isMaskedUrlTrusted(url)) {
+            if(!isWallet && url !== fullEntityText && !isMaskedUrlTrusted(url)) {
               masked = true;
             }
           } else {
-            masked = isSuspiciousUrl(url);
+            masked = !isWallet && isSuspiciousUrl(url);
             // inner = encodeEntities(replaceUrlEncodings(entityText));
           }
 
@@ -669,6 +687,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
 
           element = document.createElement('a');
           element.className = 'anchor-url';
+          if(isWallet) element.classList.add('anchor-wallet');
           (element as HTMLAnchorElement).href = url;
 
           if(!currentContext) {

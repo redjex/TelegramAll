@@ -7,6 +7,7 @@ import parseUriParams from '@helpers/string/parseUriParams';
 
 type InternalLinkAnchorType =
   | 'showMaskedAlert'
+  | 'showWalletMenu'
   | 'execBotCommand'
   | 'searchByHashtag'
   | 'addstickers'

@@ -118,6 +118,8 @@ import StreamedMessageDrafts, {StreamedMessageDraft, StreamedMessageDraftContent
 // console.trace('include');
 // TODO: если удалить диалог находясь в папке, то он не удалится из папки и будет виден в настройках
 
+// bump when parseEntities starts to find something new, so the messages already stored are parsed again
+const TOTAL_ENTITIES_VERSION = 2;
 const DO_NOT_READ_HISTORY = false;
 const DO_NOT_SEND_MESSAGES = false;
 const SEND_MESSAGES_TO_PAID_QUEUE = false;
@@ -7905,7 +7907,8 @@ export class AppMessagesManager extends AppManager {
       this.keepAnchoredEphemeralOverRefetch(peerId, message);
     }
 
-    if(isMessage && message.message.length && !message.totalEntities) {
+    // a message saved before the entities learned something new (wallet addresses) is parsed again
+    if(isMessage && message.message.length && (!message.totalEntities || (message as any).entitiesVersion !== TOTAL_ENTITIES_VERSION)) {
       this.wrapMessageEntities(message);
     }
 
@@ -8371,6 +8374,7 @@ export class AppMessagesManager extends AppManager {
       const {message, totalEntities} = wrapMessageEntities(_message.message, _message.entities);
       _message.message = message;
       _message.totalEntities = totalEntities;
+      (_message as any).entitiesVersion = TOTAL_ENTITIES_VERSION;
     } else {
       const {message, totalEntities} = wrapMessageEntities(_message.text, _message.entities);
       _message.text = message;

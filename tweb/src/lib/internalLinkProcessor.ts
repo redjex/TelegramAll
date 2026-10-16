@@ -113,6 +113,18 @@ export class InternalLinkProcessor {
       }
     });
 
+    // a wallet address in a message: the link carries the explorer's address URL, the address is its tail
+    addAnchorListener<{pathnameParams: string[]}>({
+      name: 'showWalletMenu',
+      noUriParams: true,
+      callback: async({pathnameParams, event}) => {
+        const address = pathnameParams?.[1];
+        if(!address) return;
+        const {default: showWalletAddressMenu} = await import('@components/walletAddressMenu');
+        showWalletAddressMenu(address, event as MouseEvent | TouchEvent);
+      }
+    });
+
     addAnchorListener<{uriParams: {command: string, bot: string}}>({
       name: 'execBotCommand',
       callback: ({element, uriParams}) => {

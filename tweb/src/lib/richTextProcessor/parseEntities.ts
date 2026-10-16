@@ -11,7 +11,34 @@ import {MessageEntity} from '@layer';
 import checkBrackets from '@lib/richTextProcessor/checkBrackets';
 import getEmojiUnified from '@lib/richTextProcessor/getEmojiUnified';
 
-export default function parseEntities(text: string) {
+// A TON wallet address in its friendly form: 48 base64url characters, the first two being the flags and
+// the workchain (EQ/UQ for the basechain, Ef/Uf for the masterchain, kQ/0Q on the testnet).
+const WALLET_ADDRESS_REG_EXP = /(?<![\w-])[EUk0][Qf][\w-]{46}(?![\w-])/g;
+export const WALLET_EXPLORER_URL = 'https://gram.org/address/';
+
+/** The wallet addresses in the text that no entity of `existing` already covers, as link entities. */
+export function findWalletEntities(text: string, existing: MessageEntity[]) {
+  const walletEntities: MessageEntity[] = [];
+  for(const match of text.matchAll(WALLET_ADDRESS_REG_EXP)) {
+    const offset = match.index;
+    const length = match[0].length;
+    if(existing.some((entity) => offset < entity.offset + entity.length && entity.offset < offset + length)) {
+      continue;
+    }
+
+    walletEntities.push({
+      _: 'messageEntityTextUrl',
+      offset,
+      length,
+      url: WALLET_EXPLORER_URL + match[0],
+      walletAddress: true
+    } as MessageEntity.messageEntityTextUrl);
+  }
+
+  return walletEntities;
+}
+
+export default function parseEntities(text: string, options?: {wallets?: boolean}) {
   let match: RegExpMatchArray;
   let raw = text;
   const entities: MessageEntity[] = [];
@@ -122,8 +149,15 @@ export default function parseEntities(text: string) {
     rawOffset += match.index + match[0].length;
   }
 
-  // if (entities.length) {
-  //   console.log('parse entities', text, entities.slice())
-  // }
+  // Wallet addresses become a link (to a menu of what to do with one) when the text is shown. They are
+  // left out of what is sent, so nobody receives a link entity the author never wrote.
+  if(options?.wallets) {
+    const walletEntities = findWalletEntities(text, entities);
+    if(walletEntities.length) {
+      entities.push(...walletEntities);
+      entities.sort((a, b) => a.offset - b.offset);
+    }
+  }
+
   return entities;
 }

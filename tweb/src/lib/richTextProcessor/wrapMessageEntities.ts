@@ -6,7 +6,7 @@ import parseEntities from '@lib/richTextProcessor/parseEntities';
 export default function wrapMessageEntities(message: string, entities: MessageEntity[] = []) {
   message = fixEmoji(message, entities);
 
-  const myEntities = parseEntities(message);
+  const myEntities = parseEntities(message, {wallets: true});
   const totalEntities = mergeEntities(entities, myEntities); // ! only in this order, otherwise bold and emoji formatting won't work
   return {
     message,
