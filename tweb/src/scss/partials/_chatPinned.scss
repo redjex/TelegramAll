@@ -507,7 +507,7 @@
 }
 
 .pinned-audio {
-  --progress-height: .25rem;
+  --progress-height: .75rem;
   --container-height: var(--topbar-audio-height);
 
   z-index: 2;
@@ -611,7 +611,7 @@
   &-progress {
     --border-radius: 0;
     --height: var(--progress-height);
-    --translateY: .125rem;
+    --translateY: 0;
     position: absolute;
     right: 0;
     bottom: 0;
@@ -639,18 +639,85 @@
         &:after {
           display: none !important;
         }
+
+        // the lines below draw the played part; the box only clips them to how far it has got
+        &:not(.progress-line__loaded) {
+          --tail: 28px;
+          background: none;
+          overflow: hidden;
+          // The played part does not end in a straight cut: its last stretch sinks in a smooth curve
+          // from the top of the waves down to the bottom edge, as a quarter of an ellipse.
+          -webkit-mask:
+            linear-gradient(#000 0 0) left / max(0px, calc(100% - var(--tail))) 100% no-repeat,
+            radial-gradient(ellipse var(--tail) 100% at 0 100%, #000 calc(100% - .5px), transparent 100%) right / var(--tail) 100% no-repeat;
+          mask:
+            linear-gradient(#000 0 0) left / max(0px, calc(100% - var(--tail))) 100% no-repeat,
+            radial-gradient(ellipse var(--tail) 100% at 0 100%, #000 calc(100% - .5px), transparent 100%) right / var(--tail) 100% no-repeat;
+        }
       }
 
+      // The whole strip of waves and a little above it takes the pointer, so a track can be moved by
+      // pressing anywhere on it. The wrapper stands above the plate's text and buttons for this, but lets
+      // everything outside the strip through to them.
       &__seek {
-        top: -1rem;
+        top: -.5rem;
+        bottom: 0;
+        z-index: 2;
+        pointer-events: auto;
       }
+    }
+
+    // Three filled waves stand on the plate's bottom edge, one over another. Each is a colour showing
+    // through a wave-shaped mask that slides along; they differ in shade, length, height and speed, and
+    // they are partly see-through, so where they overlap the shades blend and keep shifting.
+    .pinned-audio-wave {
+      --wave-length: 36px;
+      --wave-duration: 2s;
+      position: absolute;
+      inset: 0;
+      background-color: var(--wave-color);
+      -webkit-mask-image: var(--wave-mask);
+      mask-image: var(--wave-mask);
+      -webkit-mask-repeat: repeat-x;
+      mask-repeat: repeat-x;
+      -webkit-mask-size: var(--wave-length) 100%;
+      mask-size: var(--wave-length) 100%;
+
+      @include animation-level(2) {
+        animation: pinned-audio-wave var(--wave-duration) linear infinite;
+      }
+    }
+
+    .pinned-audio-wave-1 {
+      --wave-color: var(--primary-color);
+      --wave-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='12' viewBox='0 0 36 12' preserveAspectRatio='none'%3E%3Cpath d='M0 7 Q9 2 18 7 T36 7 V12 H0 Z' fill='black'/%3E%3C/svg%3E");
+    }
+
+    .pinned-audio-wave-2 {
+      --wave-color: color-mix(in srgb, var(--primary-color) 45%, #ffffff);
+      --wave-length: 52px;
+      --wave-duration: 3s;
+      --wave-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='12' viewBox='0 0 52 12' preserveAspectRatio='none'%3E%3Cpath d='M0 5 Q13 10 26 5 T52 5 V12 H0 Z' fill='black'/%3E%3C/svg%3E");
+      animation-direction: reverse;
+      opacity: .6;
+    }
+
+    .pinned-audio-wave-3 {
+      --wave-color: color-mix(in srgb, var(--primary-color) 40%, #ff7ad9);
+      --wave-length: 28px;
+      --wave-duration: 1.4s;
+      --wave-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='12' viewBox='0 0 28 12' preserveAspectRatio='none'%3E%3Cpath d='M0 6 Q7 1 14 6 T28 6 V12 H0 Z' fill='black'/%3E%3C/svg%3E");
+      opacity: .55;
     }
 
     &-wrapper {
       position: absolute;
       inset: 0;
+      z-index: 2;
       border-radius: inherit;
       overflow: hidden;
+      // only the seek strip inside takes the pointer; the rest of the plate stays clickable
+      pointer-events: none;
     }
   }
 
@@ -1167,5 +1234,13 @@
     justify-content: flex-end;
     width: 100%;
     height: 100%;
+  }
+}
+
+// the waves of the music plate's progress slide by one of their own lengths per turn
+@keyframes pinned-audio-wave {
+  to {
+    -webkit-mask-position: var(--wave-length) 0;
+    mask-position: var(--wave-length) 0;
   }
 }

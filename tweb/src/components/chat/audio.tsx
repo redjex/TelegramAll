@@ -105,12 +105,19 @@ export default function createChatAudio(
   volumeSelector.btn.prepend(tunnel);
   volumeSelector.btn.append(volumeProgressLineContainer);
 
+  // The played part is a width, not a scaled box: it carries waves, and a scale would stretch them.
   const progressLine = new MediaProgressLine({
     withTransition: true,
-    useTransform: true,
     onTimeUpdate: (t) => setTimeText(toHHMMSS(t, true))
   });
   progressLine.container.classList.add('pinned-audio-progress');
+  // Several lines of different shades run through the played part, each at its own pace.
+  const playedPart = progressLine.container.querySelector('.progress-line__filled:not(.progress-line__loaded)');
+  for(const index of [1, 2, 3]) {
+    const wave = document.createElement('span');
+    wave.classList.add('pinned-audio-wave', 'pinned-audio-wave-' + index);
+    playedPart?.append(wave);
+  }
 
   // ───────────────────────── Plate ─────────────────────────
 
