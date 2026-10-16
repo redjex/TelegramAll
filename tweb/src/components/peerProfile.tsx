@@ -932,7 +932,6 @@ PeerProfile.Location = () => {
 PeerProfile.Bio = () => {
   const context = useContext(PeerProfileContext);
   const {i18n, showPremiumPopup, HotReloadGuard, I18n, wrapRichText, toast} = useHotReloadGuard();
-  const appConfig = useAppConfig();
   const peerTranslation = usePeerTranslation(context.peerId);
 
   const about = createMemo(() => context.fullPeer?.about);
@@ -943,9 +942,9 @@ PeerProfile.Bio = () => {
       return;
     }
 
-    return wrapRichText(about(), {
-      whitelistedDomains: (context.peer as User.user).pFlags.premium ? undefined : appConfig.whitelisted_domains
-    });
+    // Every site in the bio is a link, not only the domains Telegram whitelists for non-Premium
+    // profiles. Suspicious-looking links still go through the usual confirmation on click.
+    return wrapRichText(about());
   });
 
   const onClick = (e: MouseEvent | TouchEvent) => {
