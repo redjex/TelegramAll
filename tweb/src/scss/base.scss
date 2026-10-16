@@ -2209,6 +2209,12 @@ hr {
   }
 }
 
+// the choice made for a privacy setting, on the right of its row, in the accent colour
+.row-title.privacy-row-value {
+  color: var(--primary-color);
+  text-align: end;
+}
+
 .privacy-premium-icon {
   vertical-align: text-top;
   color: var(--primary-color);

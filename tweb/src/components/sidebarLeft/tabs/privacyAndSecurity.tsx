@@ -413,26 +413,21 @@ const PrivacyAndSecurity: Component = () => {
           });
         };
 
-        addRow('inputPrivacyKeyPhoneNumber', i18n('PrivacyPhoneTitle'), () => {
+        // The rows read as in the mobile apps: a short name on the left, what is chosen now on the right.
+        addRow('inputPrivacyKeyPhoneNumber', i18n('PrivacyRow.Phone'), () => {
           tab.slider.createTab(AppPrivacyPhoneNumberTab).open();
         });
-        addRow('inputPrivacyKeyStatusTimestamp', i18n('LastSeenTitle'), () => {
+        addRow('inputPrivacyKeyStatusTimestamp', i18n('PrivacyRow.LastSeen'), () => {
           openTabWithGlobalPrivacy(AppPrivacyLastSeenTab, 'inputPrivacyKeyStatusTimestamp');
         });
-        addRow('inputPrivacyKeyProfilePhoto', i18n('PrivacyProfilePhotoTitle'), () => {
+        addRow('inputPrivacyKeyProfilePhoto', i18n('PrivacyRow.ProfilePhoto'), () => {
           tab.slider.createTab(AppPrivacyProfilePhotoTab).open();
         });
-        addRow('inputPrivacyKeyAbout', i18n('Privacy.BioRow'), () => {
-          tab.slider.createTab(AppPrivacyAboutTab).open();
-        });
-        addRow('inputPrivacyKeyPhoneCall', i18n('WhoCanCallMe'), () => {
-          tab.slider.createTab(AppPrivacyCallsTab).open();
-        });
-        addRow('inputPrivacyKeyForwards', i18n('PrivacyForwardsTitle'), () => {
+        addRow('inputPrivacyKeyForwards', i18n('PrivacyRow.Forwards'), () => {
           tab.slider.createTab(AppPrivacyForwardMessagesTab).open();
         });
-        addRow('inputPrivacyKeyChatInvite', i18n('WhoCanAddMe'), () => {
-          tab.slider.createTab(AppPrivacyAddToGroupsTab).open();
+        addRow('inputPrivacyKeyPhoneCall', i18n('PrivacyRow.Calls'), () => {
+          tab.slider.createTab(AppPrivacyCallsTab).open();
         });
 
         const createPremiumTitle = (langKey: LangPackKey) => {
@@ -448,10 +443,10 @@ const PrivacyAndSecurity: Component = () => {
         };
 
         if(!isPremiumFeaturesHidden) {
-          addRow('inputPrivacyKeyVoiceMessages', createPremiumTitle('PrivacyVoiceMessagesTitle'), () => {
+          addRow('inputPrivacyKeyVoiceMessages', createPremiumTitle('PrivacyRow.Voice'), () => {
             tab.slider.createTab(AppPrivacyVoicesTab).open();
           });
-          addRow('new_noncontact_peers_require_premium', createPremiumTitle('PrivacyMessagesTitle'), () => {
+          addRow('new_noncontact_peers_require_premium', createPremiumTitle('PrivacyRow.Messages'), () => {
             tab.slider.createTab(AppPrivacyMessagesTab).open({
               onSaved: (updatedPrivacy) => {
                 p.globalPrivacy = updatedPrivacy;
@@ -461,14 +456,20 @@ const PrivacyAndSecurity: Component = () => {
           });
         }
 
-        addRow('inputPrivacyKeyBirthday', i18n('Privacy.BirthdayRow'), () => {
+        addRow('inputPrivacyKeyBirthday', i18n('PrivacyRow.Birthday'), () => {
           tab.slider.createTab(AppPrivacyBirthdayTab).open();
         });
-        addRow('inputPrivacyKeyStarGiftsAutoSave', i18n('Privacy.GiftsRow'), () => {
+        addRow('inputPrivacyKeyStarGiftsAutoSave', i18n('PrivacyRow.Gifts'), () => {
           openTabWithGlobalPrivacy(AppPrivacyGiftsTab, 'inputPrivacyKeyStarGiftsAutoSave');
         });
-        addRow('inputPrivacyKeySavedMusic', i18n('Privacy.SavedMusicRow'), () => {
+        addRow('inputPrivacyKeyAbout', i18n('PrivacyRow.About'), () => {
+          tab.slider.createTab(AppPrivacyAboutTab).open();
+        });
+        addRow('inputPrivacyKeySavedMusic', i18n('PrivacyRow.SavedMusic'), () => {
           tab.slider.createTab(AppPrivacySavedMusicTab).open();
+        });
+        addRow('inputPrivacyKeyChatInvite', i18n('PrivacyRow.Invites'), () => {
+          tab.slider.createTab(AppPrivacyAddToGroupsTab).open();
         });
 
         renderComponent({
@@ -476,8 +477,7 @@ const PrivacyAndSecurity: Component = () => {
           Component: () => (
             <For each={rows}>{(row) => (
               <Row clickable={row.clickable}>
-                <Row.Title>{row.title}</Row.Title>
-                <Row.Subtitle>{rowsByKeys[row.key][0]()}</Row.Subtitle>
+                <Row.Title titleRight={rowsByKeys[row.key][0]()} titleRightClass="privacy-row-value">{row.title}</Row.Title>
               </Row>
             )}</For>
           ),
