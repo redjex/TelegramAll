@@ -497,14 +497,8 @@
         padding-bottom: 66%;
       }
 
-      // the avatar is scaled by 120px / the width of the very box it sits in, so its size never depends on its frame
-      .profile-avatars-avatars {
-        container-type: inline-size;
-      }
-
       .profile-avatars-avatar.active {
-        // --avatar-scale is 120px / the header width, so the avatar keeps its size when the panel is made wider
-        transform: translateY(-8%) scale(var(--avatar-scale, tan(atan2(120px, 100cqw))));
+        transform: translateY(-3%) scale(calc(120 / 400));
         border-radius: 50%;
       }
 
@@ -533,8 +527,7 @@
       }
 
       .profile-avatars-info {
-        // lower than the stock -33%: the name sits further from the avatar
-        transform: translateY(-22%);
+        transform: translateY(-33%);
 
         .profile-name,
         .profile-subtitle {
@@ -551,7 +544,7 @@
 
       .has-music {
         .profile-avatars-info {
-          transform: translateY(0%);
+          transform: translateY(-10%);
         }
       }
 
