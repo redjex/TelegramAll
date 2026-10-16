@@ -533,7 +533,9 @@ if(import.meta.env.DEV) {
   themeController.setThemeListener();
 
   // * fetch lang pack updates
-  if((langPack.localVersion !== App.langPackLocalVersion || true) && IS_BETA) {
+  // a bumped local version has to re-fetch the pack too, otherwise new local strings never reach a
+  // cached one outside the beta build
+  if(langPack.localVersion !== App.langPackLocalVersion || IS_BETA) {
     I18n.getLangPackAndApply(langPack.lang_code);
   } else {
     checkLangPackForUpdates();

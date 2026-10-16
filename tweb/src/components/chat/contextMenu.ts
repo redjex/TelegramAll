@@ -81,6 +81,8 @@ import noop from '@helpers/noop';
 import {isSensitive} from '@helpers/restrictions';
 import {hasSensitiveSpoiler} from '@components/wrappers/mediaSpoiler';
 import {useIsFrozen} from '@stores/appState';
+import {useAppSettings} from '@stores/appSettings';
+import showTlSchemaPopup from '@components/tlSchemaPopup';
 import prepareTextWithEntitiesForCopying from '@helpers/prepareTextWithEntitiesForCopying';
 import {runWithHotReloadGuard} from '@lib/solidjs/runWithHotReloadGuard';
 import {PartialByKeys} from '@types';
@@ -1270,6 +1272,11 @@ export default class ChatContextMenu {
           this.contentNoForwards,
           this.chat.container
         )
+    }, {
+      icon: 'info',
+      text: 'Message.Context.ViewTlSchema',
+      onClick: () => showTlSchemaPopup(this.message),
+      verify: () => useAppSettings()[0].showTlSchema && !!this.message
     }, {
       icon: 'note_filled',
       text: 'SavedMusic.AddToProfile',

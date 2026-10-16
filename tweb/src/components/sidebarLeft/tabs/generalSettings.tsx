@@ -345,6 +345,23 @@ const TimeFormatSection = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Section 5 — experimental features, kept apart from the everyday settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ExperimentalSection = () => {
+  return (
+    <Section name="GeneralSettings.Experimental">
+      <Row>
+        <Row.CheckboxFieldToggle>
+          <CheckboxFieldTsx stateKey={joinDeepPath('settings', 'showTlSchema')} toggle />
+        </Row.CheckboxFieldToggle>
+        <Row.Title>{i18n('GeneralSettings.ShowTlSchema')}</Row.Title>
+      </Row>
+    </Section>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tab root
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -355,6 +372,7 @@ const GeneralSettings = () => {
       <ThemeSection />
       {IS_GEOLOCATION_SUPPORTED && <DistanceUnitsSection />}
       <TimeFormatSection />
+      <ExperimentalSection />
     </>
   );
 };
