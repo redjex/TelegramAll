@@ -764,6 +764,48 @@ PeerProfile.Username = () => {
   );
 };
 
+PeerProfile.Wallet = () => {
+  const context = useContext(PeerProfileContext);
+  const {i18n, rootScope, toastNew} = useHotReloadGuard();
+
+  // the wallet a user has linked to the account; nothing is shown for people without one
+  const [address] = createResource(
+    () => context.peerId.isUser() ? context.peerId : undefined,
+    async(peerId) => {
+      if(!peerId) return;
+      try {
+        return await rootScope.managers.appAccountManager.getUserWalletAddress(peerId.toUserId());
+      } catch{}
+    }
+  );
+
+  const copyAddress = () => {
+    copyTextToClipboard(address());
+    toastNew({langPackKey: 'Wallet.AddressCopied'});
+  };
+
+  return (
+    <Show when={address()}>
+      <Row
+        clickable={(e: MouseEvent) => {
+          import('@components/walletAddressMenu').then(({default: showWalletAddressMenu}) => showWalletAddressMenu(address(), e));
+        }}
+        contextMenu={{
+          buttons: [{
+            icon: 'copy',
+            text: 'Wallet.CopyAddress',
+            onClick: copyAddress
+          }]
+        }}
+      >
+        <Row.Icon icon="gram" />
+        <Row.Title>{address().slice(0, 6) + '…' + address().slice(-6)}</Row.Title>
+        <Row.Subtitle>{i18n('Wallet.Title')}</Row.Subtitle>
+      </Row>
+    </Show>
+  );
+};
+
 PeerProfile.QrButton = () => {
   const context = useContext(PeerProfileContext);
   const {I18n, showMyQrCodePopup, rootScope} = useHotReloadGuard();
@@ -1683,6 +1725,7 @@ PeerProfile.MainSection = () => {
       <Show when={!(context.isBotforum && context.threadId)}>
         <PeerProfile.Phone />
         <PeerProfile.Username />
+        <PeerProfile.Wallet />
         <PeerProfile.Location />
         <PeerProfile.Bio />
         <PeerProfile.Link />

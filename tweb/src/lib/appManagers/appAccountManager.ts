@@ -110,6 +110,28 @@ export default class AppAccountManager extends AppManager {
     return promise;
   }
 
+  private userWalletAddresses = new Map<UserId, Promise<string | undefined>>();
+
+  /** The wallet address a Telegram user has linked (wallet.getUserAddresses the other way round), if any. */
+  public getUserWalletAddress(userId: UserId): Promise<string | undefined> {
+    let promise = this.userWalletAddresses.get(userId);
+    if(!promise) {
+      promise = this.apiManager.invokeApi('wallet.getUserAddresses', {
+        id: [this.appUsersManager.getUserInput(userId)],
+        addresses: []
+      }).then((result) => {
+        this.appUsersManager.saveApiUsers(result.users);
+        const address = result.addresses.find((item) => item.user_id !== undefined && String(item.user_id) === String(userId))?.address;
+        if(address) this.walletAddressOwners.set(address, Promise.resolve(userId.toPeerId(false)));
+        return address;
+      });
+      this.userWalletAddresses.set(userId, promise);
+      promise.catch(() => this.userWalletAddresses.delete(userId));
+    }
+
+    return promise;
+  }
+
   protected after() {
     const pendingUpdates: Update.updateNewAuthorization[] = [];
     let loaded = false;

@@ -4876,6 +4876,7 @@ const lang = {
   'Wallet.OpenInExplorer': 'Открыть в обозревателе',
   'Wallet.SendMoney': 'Отправить деньги',
   'Wallet.OwnerProfile': 'Профиль владельца',
+  'Wallet.Title': 'Кошелёк',
   'Wallet.CopyAddress': 'Скопировать адрес',
   'Wallet.AddressCopied': 'Адрес скопирован.',
   'Sticker.AddText': 'Добавить текст',
