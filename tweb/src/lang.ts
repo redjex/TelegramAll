@@ -4875,6 +4875,7 @@ const lang = {
   'PrivacyRow.Invites': 'Приглашения',
   'Wallet.OpenInExplorer': 'Открыть в обозревателе',
   'Wallet.SendMoney': 'Отправить деньги',
+  'Wallet.OwnerProfile': 'Профиль владельца',
   'Wallet.CopyAddress': 'Скопировать адрес',
   'Wallet.AddressCopied': 'Адрес скопирован.',
   'Sticker.AddText': 'Добавить текст',

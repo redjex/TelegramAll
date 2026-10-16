@@ -1,4 +1,6 @@
-import {ButtonMenuSync} from '@components/buttonMenu';
+import {ButtonMenuSync, ButtonMenuItem} from '@components/buttonMenu';
+import rootScope from '@lib/rootScope';
+import wrapPeerTitle from '@components/wrappers/peerTitle';
 import {toastNew} from '@components/toast';
 import {copyTextToClipboard} from '@helpers/clipboard';
 import {getOverlayRoot} from '@helpers/appWindow';
@@ -35,6 +37,41 @@ export default function showWalletAddressMenu(address: string, event: MouseEvent
     }]
   });
   element.classList.add('contextmenu');
+
+  // the owner is looked up on the server; their profile row (avatar, name, @username) is added at the top of the menu
+  // as soon as it is known, and only if the address belongs to a Telegram user
+  (async() => {
+    const peerId = await rootScope.managers.appAccountManager.getWalletAddressOwner(address);
+    if(!peerId || !element.isConnected) return;
+
+    const [title, username] = await Promise.all([
+      wrapPeerTitle({peerId}),
+      rootScope.managers.appPeersManager.getPeerUsername(peerId)
+    ]);
+    if(!element.isConnected) return;
+
+    const textElement = document.createElement('span');
+    textElement.classList.add('wallet-owner-text');
+    title.classList.add('wallet-owner-name');
+    textElement.append(title);
+    if(username) {
+      const handle = document.createElement('span');
+      handle.classList.add('wallet-owner-username');
+      handle.textContent = '@' + username;
+      textElement.append(handle);
+    }
+
+    const items = ButtonMenuItem({
+      avatarInfo: {peerId},
+      textElement,
+      separatorDown: true,
+      onClick: () => {
+        import('@lib/appImManager').then(({default: appImManager}) => appImManager.setPeer({peerId}));
+      }
+    }) as HTMLElement[];
+    element.prepend(...items);
+  })().catch(() => {});
+
   getOverlayRoot().append(element);
 
   positionMenu(event, element);

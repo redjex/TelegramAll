@@ -89,6 +89,14 @@ export default class AppAccountManager extends AppManager {
   private authorizationAutoconfirmPeriodVersion = 0;
   private authorizationExpirationTimeout: number;
 
+  /** The Telegram user a wallet address belongs to (wallet.getUserAddresses), if the server knows one. */
+  public async getWalletAddressOwner(address: string): Promise<PeerId | undefined> {
+    const result = await this.apiManager.invokeApi('wallet.getUserAddresses', {id: [], addresses: [address]});
+    this.appUsersManager.saveApiUsers(result.users);
+    const found = result.addresses.find((item) => item.address === address && item.user_id !== undefined);
+    return found ? found.user_id.toPeerId(false) : undefined;
+  }
+
   protected after() {
     const pendingUpdates: Update.updateNewAuthorization[] = [];
     let loaded = false;
