@@ -338,13 +338,8 @@
       overflow: hidden;
 
       &-item {
-        // the cell shows exactly the picture of a story cut for the grid (its black bars fall outside it),
-        // so rows meet with the same 1px seam as columns
-        padding-bottom: 123.3%;
-
-        .grid-item-media {
-          transform: scale(1.012);
-        }
+        // one 1px seam everywhere: no scaling, so neighbouring pieces of a cut picture meet without overlap or a gap
+        padding-bottom: 125%;
       }
 
       &.one {
