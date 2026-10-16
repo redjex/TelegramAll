@@ -12370,25 +12370,7 @@ export default class ChatBubbles {
           if(intro.sticker) {
             doc = intro.sticker as MyDocument;
           }
-
-          const bubbleContainer = bubble.querySelector('.bubble-content');
-          const content = bubbleContainer.cloneNode(false) as HTMLElement;
-          const service = bubbleContainer.querySelector('.service-msg').cloneNode(false) as HTMLElement;
-
-          service.append(i18n(
-            intro.title || intro.description ? 'ChatEmpty.BusinessIntro.How' : 'ChatEmpty.BusinessIntro.Sticker.How',
-            [
-              await wrapPeerTitle({peerId: message.peerId, onlyFirstName: true}),
-              anchorCallback(() => {
-                showPremiumPopup();
-              })
-            ]
-          ));
-
-          content.classList.add('has-service-before');
-          content.append(service);
-          bubbleContainer.after(content);
-          bubble.classList.add('wider');
+          // the "<name> set this message for all new chats. How?" plaque under the sticker is intentionally not rendered
         }
 
         const loadPromises: Promise<any>[] = [];
