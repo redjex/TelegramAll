@@ -28,6 +28,7 @@ import Section from '@components/section';
 
 import styles from '@components/sidebarRight/tabs/savedMusic.module.scss';
 import createMiddleware from '@helpers/solid/createMiddleware';
+import {getMiddleware} from '@helpers/middleware';
 
 const DOC_ID_ATTRIBUTE = 'data-doc-id';
 
@@ -57,8 +58,19 @@ function SavedMusicContent(props: {
 
   const middleware = createMiddleware().get();
 
+  // The playlist keeps playing and loading after the tab is closed, so the playback media belongs to
+  // the loader. When the controller never adopted this loader (nothing was played from here) it has
+  // to be released with the tab.
+  onCleanup(() => {
+    if(appMediaPlaybackController.getListLoaderFactory() !== loaderFactory) {
+      savedMusicLoader.cleanup();
+    }
+  });
+
   let renderPromise = Promise.resolve();
   savedMusicLoader.onNewDocs = (docs) => {
+    // the tab is closed, the loader just keeps filling the playback queue
+    if(!middleware()) return;
     setDocCount((count) => count + docs.length);
     renderPromise = renderPromise.then(async() => {
       const playingDetails = appMediaPlaybackController.getPlayingDetails();
@@ -104,7 +116,7 @@ function SavedMusicContent(props: {
         message,
         autoload: false,
         clean: false,
-        middleware
+        middleware: savedMusicLoader.playbackMiddleware.get()
       });
       return {peerId: message.peerId, mid: message.mid};
     }
@@ -304,6 +316,8 @@ class SavedMusicListLoader extends ListLoader<MediaItem, Message.message> implem
   public onEmptied?: () => void;
   public extraOnLoadedMore?: () => void;
   public onNewDocs?: (docs: MyDocument[]) => void;
+  // owns the playback media of every loaded track, so it outlives the tab and dies with the loader
+  public playbackMiddleware = getMiddleware();
   private offset = 0;
   private peerId: PeerId;
   private fakeMidCounter = 0;
@@ -623,7 +637,9 @@ class SavedMusicListLoader extends ListLoader<MediaItem, Message.message> implem
     this.gapFillingInProgress = false;
   }
 
-  public cleanup() {}
+  public cleanup() {
+    this.playbackMiddleware.destroy();
+  }
 
   private getMainItems(): MediaItem[] {
     const items = [...this.previous];
