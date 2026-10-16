@@ -13,6 +13,23 @@ import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId'
 import namedPromises from '@helpers/namedPromises';
 import isEphemeralMessage from '@appManagers/utils/messages/isEphemeralMessage';
 
+// "also delete for everyone" is remembered between messages and between launches
+const REVOKE_PREFERENCE_KEY = 'tweb-delete-for-everyone';
+
+function getRevokePreference() {
+  try {
+    return localStorage.getItem(REVOKE_PREFERENCE_KEY) === '1';
+  } catch{
+    return false;
+  }
+}
+
+function saveRevokePreference(value: boolean) {
+  try {
+    localStorage.setItem(REVOKE_PREFERENCE_KEY, value ? '1' : '0');
+  } catch{}
+}
+
 export default async function showDeleteMessagesPopup(
   peerId: PeerId,
   mids: number[],
@@ -66,6 +83,7 @@ export default async function showDeleteMessagesPopup(
     revoke?: boolean
   ) => {
     onConfirm?.();
+    if(hasRevokeCheckbox) saveRevokePreference(!!checked?.size);
     if(type === ChatType.Scheduled) {
       managers.appMessagesManager.deleteScheduledMessages(peerId, mids);
     } else if(type === ChatType.Welcome) {
@@ -81,6 +99,7 @@ export default async function showDeleteMessagesPopup(
     }
   };
 
+  let hasRevokeCheckbox = false;
   const buttons: PopupPeerOptions['buttons'] = [{
     langKey: 'Delete',
     isDanger: true,
@@ -125,14 +144,16 @@ export default async function showDeleteMessagesPopup(
     if(canRevoke.length === mids.length) {
       checkboxes.push({
         text: 'DeleteMessagesOptionAlso',
-        textArgs: [peerTitleElement]
+        textArgs: [peerTitleElement],
+        checked: getRevokePreference()
       });
     } else {
       description = isSingleMessage ? 'AreYouSureDeleteSingleMessageOnlyMe' : 'AreYouSureDeleteFewMessagesOnlyMe';
 
       if(canRevoke.length) {
         checkboxes.push({
-          text: 'DeleteMessagesOption'
+          text: 'DeleteMessagesOption',
+          checked: getRevokePreference()
         });
 
         description = 'AreYouSureDeleteFewMessagesMixed';
@@ -152,11 +173,13 @@ export default async function showDeleteMessagesPopup(
       if(canRevoke.length) {
         if(canRevoke.length === mids.length) {
           checkboxes.push({
-            text: 'DeleteForAll'
+            text: 'DeleteForAll',
+            checked: getRevokePreference()
           });
         } else {
           checkboxes.push({
-            text: 'DeleteMessagesOption'
+            text: 'DeleteMessagesOption',
+            checked: getRevokePreference()
           });
 
           description = 'DeleteMessagesTextGroup';
@@ -181,6 +204,8 @@ export default async function showDeleteMessagesPopup(
       buttons[0].callback = (e, checked) => callback(e, checked, true);
     }
   }
+
+  hasRevokeCheckbox = checkboxes.length > 0;
 
   addCancelButton(buttons);
 

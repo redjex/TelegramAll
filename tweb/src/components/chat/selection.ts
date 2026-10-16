@@ -1238,7 +1238,7 @@ export default class ChatSelection extends AppSelection {
 
         // Left slot — delete.
         this.selectionDeleteBtn = ButtonIcon('delete danger selection-container-delete', {ariaLabel: 'Delete'});
-        attachClickEvent(this.selectionDeleteBtn, () => {
+        const deleteSelected = () => {
           showDeleteMessagesPopup(
             this.chat.peerId,
             this.getSelectedMids(),
@@ -1247,7 +1247,19 @@ export default class ChatSelection extends AppSelection {
               this.cancelSelection();
             }
           );
-        }, attachClickOptions);
+        };
+        attachClickEvent(this.selectionDeleteBtn, deleteSelected, attachClickOptions);
+
+        // Del does what the delete button does, while messages are selected and nothing is being typed
+        this.containerListenerSetter.add(document)('keydown', (e: KeyboardEvent) => {
+          if(e.key !== 'Delete' || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+          const active = document.activeElement as HTMLElement;
+          if(active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))) return;
+          if(!this.selectionDeleteBtn || this.selectionDeleteBtn.hasAttribute('disabled') || !this.getSelectedMids().length) return;
+          if(document.querySelector('.popup.active')) return;
+          cancelEvent(e);
+          deleteSelected();
+        });
 
         // Right slot — forward (or "send now" for scheduled messages).
         let rightButton: HTMLElement;
