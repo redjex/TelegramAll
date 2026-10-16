@@ -113,6 +113,13 @@ export class InternalLinkProcessor {
       }
     });
 
+    // the owner behind a wallet address is asked for as soon as the pointer is over it, so the menu already knows it on click
+    document.addEventListener('mouseover', (event) => {
+      const anchor = (event.target as HTMLElement)?.closest?.('a[onclick="showWalletMenu"], a[href^="https://gram.org/address/"]') as HTMLAnchorElement;
+      const address = anchor?.getAttribute('href')?.split('/address/')[1]?.split(/[?#]/)[0];
+      if(address) rootScope.managers.appAccountManager.getWalletAddressOwner(address).catch(() => {});
+    }, {passive: true});
+
     // a wallet address in a message: the link carries the explorer's address URL, the address is its tail
     addAnchorListener<{pathnameParams: string[]}>({
       name: 'showWalletMenu',
