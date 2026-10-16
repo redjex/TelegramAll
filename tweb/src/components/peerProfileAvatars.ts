@@ -813,7 +813,9 @@ export default class PeerProfileAvatars {
     };
 
     if(typeof(ResizeObserver) !== 'undefined') {
-      const resizeObserver = new ResizeObserver(() => applyPanelBackground());
+      const resizeObserver = new ResizeObserver(() => {
+        applyPanelBackground();
+      });
       resizeObserver.observe(this.container);
       middleware.onDestroy(() => {
         resizeObserver.disconnect();
