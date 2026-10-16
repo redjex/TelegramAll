@@ -248,13 +248,14 @@ export default class MarkupTooltip {
       this.buttons.italic,
       this.buttons.underline,
       this.buttons.strikethrough,
+      // hidden text sits with the basic styles, not behind the horizontal scroll
+      this.buttons.spoiler,
       this.buttons.quote,
       this.dateLinkDelimiter,
       this.buttons.date,
       this.buttons.link,
       this.extendedDelimiter,
       this.buttons.monospace,
-      this.buttons.spoiler,
       this.buttons.highlight,
       this.buttons.subscript,
       this.buttons.superscript
@@ -522,13 +523,13 @@ export default class MarkupTooltip {
       'italic',
       'underline',
       'strikethrough',
+      'spoiler',
       'quote'
     ] as const).some((type) => !hiddenTypes.has(type));
     const hasDateOrLink = (['date', 'link'] as const)
     .some((type) => !hiddenTypes.has(type));
     const hasExtendedFormatting = ([
       'monospace',
-      'spoiler',
       'highlight',
       'subscript',
       'superscript'
