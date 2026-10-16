@@ -136,6 +136,15 @@ export default function createStickersContextMenu({
     },
     verify: () => !!(isGif && chatInput && chatInput.chat.peerId)
   }, {
+    icon: 'edit',
+    text: 'Sticker.AddText',
+    onClick: async() => {
+      onSend?.();
+      const {default: showStickerTextPopup} = await import('@components/stickerTextPopup');
+      showStickerTextPopup(chatInput, doc);
+    },
+    verify: () => !!(!isGif && chatInput && chatInput.chat.peerId)
+  }, {
     icon: 'mute',
     text: 'Chat.Send.WithoutSound',
     onClick: () => {

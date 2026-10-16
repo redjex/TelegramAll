@@ -3860,7 +3860,7 @@ export default class ChatBubbles {
       }
     } */
 
-    if(bubble.classList.contains('sticker') && target.parentElement.classList.contains('attachment')) {
+    if((bubble.classList.contains('sticker') || bubble.classList.contains('sticker-with-text')) && target.parentElement.classList.contains('attachment')) {
       const message = this.chat.getMessage(bubbleFullMid);
 
       const doc = ((message as Message.message).media as MessageMedia.messageMediaDocument)?.document as Document.document;
@@ -8820,9 +8820,8 @@ export default class ChatBubbles {
 
       const document = (context.messageMedia as MessageMedia.messageMediaDocument)?.document as MyDocument;
       if(document) {
-        if(document?.type === 'sticker') {
-          context.messageMessage = totalEntities = undefined;
-        } else if(!['video', 'gif'].includes(document.type)) {
+        // a sticker keeps its text: with some it is drawn under the sticker in an ordinary bubble
+        if(document?.type !== 'sticker' && !['video', 'gif'].includes(document.type)) {
           needToSetHTML = false;
         }
       }
@@ -10077,6 +10076,13 @@ export default class ChatBubbles {
 
           if(doc.sticker/*  && doc.size <= 1e6 */) {
             this.wrapSticker(context, {doc, container: context.attachmentDiv});
+            if(!isMessageEmpty) {
+              // a sticker with text is one ordinary bubble: the sticker on top, its text under it
+              bubble.classList.remove('sticker');
+              bubble.classList.add('sticker-with-text');
+              context.isStandaloneMedia = false;
+              context.canHaveTail = true;
+            }
           } else if(doc.type === 'video' || doc.type === 'gif' || doc.type === 'round'/*  && doc.size <= 20e6 */) {
             // this.log('never get free 2', doc);
 

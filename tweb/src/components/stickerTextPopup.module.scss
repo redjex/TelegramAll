@@ -1,0 +1,33 @@
+.popup {
+  --popup-width: 22rem;
+}
+
+// the sticker is drawn into a box of its own, otherwise a video sticker stretches over the popup
+.preview {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  width: 12rem;
+  height: 12rem;
+  margin: .5rem auto 1rem;
+
+  > * {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  video,
+  canvas,
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.field {
+  padding: 0 1rem 1rem;
+}

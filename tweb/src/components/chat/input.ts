@@ -5104,14 +5104,17 @@ export default class ChatInput {
     clearDraft = false,
     silent = false,
     target,
-    ignoreNoPremium
+    ignoreNoPremium,
+    caption
   }: {
     document: MyDocument | DocId,
     force?: boolean,
     clearDraft?: boolean,
     silent?: boolean,
     target?: HTMLElement,
-    ignoreNoPremium?: boolean
+    ignoreNoPremium?: boolean,
+    /** Text sent in the same message as the document (a sticker with text under it). */
+    caption?: string
   }) {
     if(!this.verifyEphemeralCommand() || !(await this.checkWelcomeMessagesLimit())) {
       return false;
@@ -5140,7 +5143,7 @@ export default class ChatInput {
         return false;
       }
 
-      this.scheduleSending(() => this.sendMessageWithDocument({document, force: true, clearDraft, silent, target}));
+      this.scheduleSending(() => this.sendMessageWithDocument({document, force: true, clearDraft, silent, target, caption}));
       return false;
     }
 
@@ -5170,7 +5173,8 @@ export default class ChatInput {
       file: document,
       isMedia: true,
       clearDraft,
-      silent
+      silent,
+      caption
     });
     this.onMessageSent(clearDraft, true, isEphemeral);
 
