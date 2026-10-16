@@ -19,7 +19,7 @@ import showForwardPopup from '@components/popups/forward';
 import getMediaFromMessage from '@appManagers/utils/messages/getMediaFromMessage';
 import Sortable from '@helpers/dom/sortable';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
-import {confirmRemoveFromProfileMusic, removeFromProfileMusic} from '@components/savedMusicActions';
+import {addToProfileMusic, confirmRemoveFromProfileMusic, removeFromProfileMusic} from '@components/savedMusicActions';
 import createFakeAudioMessage from '@components/wrappers/fakeAudioMessage';
 import Icon from '@components/icon';
 import ButtonIcon from '@components/buttonIcon';
@@ -182,6 +182,15 @@ function SavedMusicContent(props: {
         text: 'SavedMusic.Sort',
         onClick: () => props.startSorting(),
         verify: () => props.isMine && !props.sorting() && docCount() > 1
+      }, {
+        // someone else's playlist: the track can be taken into one's own profile from here
+        icon: 'note_filled',
+        text: 'SavedMusic.AddToProfile',
+        onClick: () => addToProfileMusic(getTargetDoc(contextMenuTarget).id),
+        verify: async() => {
+          const doc = getTargetDoc(contextMenuTarget);
+          return !props.isMine && !!doc && !await rootScope.managers.appSavedMusicManager.isInProfile(doc.id);
+        }
       }, {
         icon: 'note_crossed',
         text: 'SavedMusic.RemoveFromProfile',

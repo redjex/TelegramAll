@@ -67,6 +67,8 @@ import attachMediaPeekListeners, {getMessageMediaPeekSource} from '@components/m
 import wrapMediaSpoiler, {hasMediaSpoiler, hasSensitiveSpoiler, onMediaSpoilerClick} from '@components/wrappers/mediaSpoiler';
 import filterAsync from '@helpers/array/filterAsync';
 import ChatContextMenu, {getSponsoredMessageButtons} from '@components/chat/contextMenu';
+import {addToProfileMusic, getSavedMusicDocument, removeFromProfileMusic} from '@components/savedMusicActions';
+import {useIsFrozen} from '@stores/appState';
 import getParticipantRank from '@appManagers/utils/chats/getParticipantRank';
 import {NULL_PEER_ID} from '@appManagers/constants';
 import createParticipantContextMenu from '@helpers/dom/createParticipantContextMenu';
@@ -304,6 +306,16 @@ class SearchContextMenu {
       verify: () => this.searchSuper.selection.isSelecting && ChatContextMenu.canDownload(this.selectedMessages, undefined, this.noForwards, this.attachTo),
       withSelection: true
     }, {
+      icon: 'note_filled',
+      text: 'SavedMusic.AddToProfile',
+      onClick: () => addToProfileMusic(this.getSavedMusicDocId()),
+      verify: () => this.verifySavedMusic(false)
+    }, {
+      icon: 'note_crossed',
+      text: 'SavedMusic.RemoveFromProfile',
+      onClick: () => removeFromProfileMusic(this.getSavedMusicDocId()),
+      verify: () => this.verifySavedMusic(true)
+    }, {
       icon: 'message',
       text: 'Message.Context.Goto',
       onClick: this.onGotoClick,
@@ -338,6 +350,19 @@ class SearchContextMenu {
     this.element = ButtonMenuSync({buttons: this.buttons, listenerSetter: this.listenerSetter});
     this.element.classList.add('search-contextmenu', 'contextmenu');
     getOverlayRoot().append(this.element);
+  }
+
+  private getSavedMusicDocId() {
+    return getSavedMusicDocument(this.message, this.noForwards)?.id;
+  }
+
+  private async verifySavedMusic(inProfile: boolean) {
+    const docId = this.getSavedMusicDocId();
+    if(!docId || useIsFrozen()) {
+      return false;
+    }
+
+    return await this.managers.appSavedMusicManager.isInProfile(docId) === inProfile;
   }
 
   private onGotoClick = () => {
