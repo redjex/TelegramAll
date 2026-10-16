@@ -1740,6 +1740,9 @@
       // margin-left: 1px;
       line-height: var(--messages-time-text-size); // of message
       color: var(--message-status-color);
+      // keeps the ticks off the time; the same box is laid out in the hidden `.time` spacer, so the
+      // text still wraps around the full width
+      margin-inline-start: .3125rem;
     }
 
     &-part {

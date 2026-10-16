@@ -4492,7 +4492,9 @@ export class AppMessagesManager extends AppManager {
       queryId: string
       resultId: string,
       geoPoint: GeoPoint,
-      webDocument?: WebDocument
+      webDocument?: WebDocument,
+      /** Plain text sent along with the media (a location and its name). */
+      caption: string
     }>
   ) {
     let {peerId, inputMedia} = options;
@@ -4547,6 +4549,9 @@ export class AppMessagesManager extends AppManager {
     }
 
     const message = this.generateOutgoingMessage(peerId, options);
+    if(options.caption) {
+      message.message = options.caption;
+    }
 
     let media: MessageMedia;
     switch(inputMedia._) {

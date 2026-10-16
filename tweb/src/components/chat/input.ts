@@ -1362,6 +1362,23 @@ export default class ChatInput {
         return !!music_search_username || !!myMusicIds.length;
       }
     }, {
+      // a plain location message: pick a point on the map and send it. The rich-message map below
+      // takes over where it is available, so the two never show side by side.
+      icon: 'location',
+      text: 'AttachLocation',
+      onClick: () => void this.sendLocation(),
+      verify: async() => {
+        if(this.editMsgId || this.isWelcomeComposer || this.ephemeralComposer) return false;
+        if(
+          this.messageInputEditor &&
+          await this.managers.appMessagesManager.isRichMessageMapAvailable()
+        ) {
+          return false;
+        }
+
+        return this.chat.canSend('send_plain');
+      }
+    }, {
       icon: 'location',
       richMessageAction: 'location',
       textElement: createAttachPremiumLabel('AttachLocation'),
@@ -4685,6 +4702,39 @@ export default class ChatInput {
 
     this.inputState.set({messageCount: splitted.length});
   }, 120);
+
+  private async sendLocation() {
+    const [{default: showRichMessageLocationPicker}, {splitRichMessageMapCaption}] = await Promise.all([
+      import('@components/popups/richMessageLocation'),
+      import('@components/popups/richMessageLocationModel')
+    ]);
+
+    let map: Awaited<ReturnType<typeof showRichMessageLocationPicker>>;
+    try {
+      map = await showRichMessageLocationPicker();
+    } catch{
+      return;
+    }
+
+    const confirmedPaymentResult = await this.paidMessageInterceptor.prepareStarsForPayment(1);
+    if(confirmedPaymentResult === PAYMENT_REJECTED) return;
+
+    const {latitude: lat, longitude: long, accuracyRadius: accuracy_radius} = map;
+    const {title} = splitRichMessageMapCaption(map.caption);
+
+    this.managers.appMessagesManager.sendOther({
+      ...this.chat.getMessageSendingParams(),
+      confirmedPaymentResult,
+      inputMedia: {
+        _: 'inputMediaGeoPoint',
+        geo_point: {_: 'inputGeoPoint', lat, long, accuracy_radius}
+      },
+      geoPoint: {_: 'geoPoint', lat, long, access_hash: 0, accuracy_radius},
+      // the name goes along as the text of the same message, in plain type
+      caption: title || undefined
+    });
+    this.onMessageSent(false, true);
+  }
 
   private getValueAndEntities(input: HTMLElement) {
     const {entities: apiEntities, value} = getRichValueWithCaret(input, true, false);

@@ -1,4 +1,3 @@
-import ButtonIcon from '@components/buttonIcon';
 import {createGeoPin} from '@components/geoPin';
 import InputField from '@components/inputField';
 import PopupElement, {createPopup} from '@components/popups/indexTsx';
@@ -6,10 +5,6 @@ import styles from '@components/popups/richMessageLocation.module.scss';
 import ListenerSetter from '@helpers/listenerSetter';
 import {onCleanup} from 'solid-js';
 import type {ChatInputMapOptions} from '@components/chat/inputEditor/types';
-import {attachClickEvent} from '@helpers/dom/clickEvent';
-import getWebFileLocation from '@helpers/getWebFileLocation';
-import {getMiddleware} from '@helpers/middleware';
-import type {GeoPoint} from '@layer';
 import I18n, {i18n} from '@lib/langPack';
 import {
   composeRichMessageMapCaption,
@@ -21,7 +16,7 @@ import {
 const DEFAULT_MAP_HEIGHT = 200;
 const DEFAULT_MAP_WIDTH = 400;
 const DEFAULT_PREVIEW_ZOOM = 13;
-const MAX_ZOOM = 20;
+const MAX_ZOOM = 19; // the deepest level OpenStreetMap serves
 const MIN_ZOOM = 1;
 
 type RichMessageLocationPickerOptions = {
@@ -34,7 +29,8 @@ class RichMessageLocationContent {
   private readonly listenerSetter = new ListenerSetter();
   private destroyed = false;
   private accuracyRadius: number;
-  private addressInputField: InputField;
+  // an address the map was made with is kept as it was; the picker itself only asks for a title
+  private address: string;
   private coordinates: HTMLElement;
   private latitude: number;
   private longitude: number;
@@ -42,7 +38,6 @@ class RichMessageLocationContent {
   private mapImage: HTMLElement;
   private mapPreview: HTMLElement;
   private mapWidth: number;
-  private previewMiddleware = getMiddleware();
   private previewZoom: number;
   private titleInputField: InputField;
 
@@ -61,13 +56,8 @@ class RichMessageLocationContent {
       plainText: true,
       withLinebreaks: false
     });
-    this.addressInputField = new InputField({
-      label: 'Chat.Input.Editor.Map.Address',
-      plainText: true,
-      withLinebreaks: false
-    });
     if(caption.title) this.titleInputField.setValueSilently(caption.title);
-    if(caption.address) this.addressInputField.setValueSilently(caption.address);
+    this.address = caption.address;
 
     const picker = document.createElement('div');
     picker.classList.add(styles.picker);
@@ -89,59 +79,11 @@ class RichMessageLocationContent {
     this.coordinates.classList.add(styles.coordinates);
     this.mapPreview.append(this.mapImage, pin, this.coordinates);
 
-    const zoomControls = document.createElement('div');
-    zoomControls.classList.add(styles.zoomControls);
-    const zoomIn = ButtonIcon('zoomin', {noRipple: true});
-    const zoomOut = ButtonIcon('zoomout', {noRipple: true});
-    zoomIn.setAttribute('aria-label', I18n.format('KeyboardShortcuts.Action.ZoomIn', true));
-    zoomOut.setAttribute('aria-label', I18n.format('KeyboardShortcuts.Action.ZoomOut', true));
-    zoomControls.append(zoomIn, zoomOut);
-
-    const currentLocation = document.createElement('button');
-    currentLocation.classList.add(
-      'btn-primary',
-      'btn-color-primary',
-      styles.currentLocation
-    );
-    currentLocation.append(i18n('Chat.Input.Editor.Map.UseCurrentLocation'));
-
     const fields = document.createElement('div');
     fields.classList.add(styles.fields);
-    fields.append(
-      this.titleInputField.container,
-      this.addressInputField.container
-    );
-    picker.append(this.mapPreview, zoomControls, currentLocation, fields);
+    fields.append(this.titleInputField.container);
+    picker.append(this.mapPreview, fields);
     this.body.prepend(picker);
-
-    attachClickEvent(zoomIn, () => this.setZoom(this.previewZoom + 1), {
-      listenerSetter: this.listenerSetter
-    });
-    attachClickEvent(zoomOut, () => this.setZoom(this.previewZoom - 1), {
-      listenerSetter: this.listenerSetter
-    });
-    attachClickEvent(currentLocation, () => {
-      if(!navigator.geolocation) return false;
-      currentLocation.disabled = true;
-      navigator.geolocation.getCurrentPosition((position) => {
-        if(this.destroyed) return;
-        this.accuracyRadius = Math.round(position.coords.accuracy);
-        this.latitude = position.coords.latitude;
-        this.longitude = position.coords.longitude;
-        this.previewZoom = DEFAULT_PREVIEW_ZOOM;
-        currentLocation.disabled = false;
-        this.renderPreview();
-      }, () => {
-        if(this.destroyed) return;
-        currentLocation.disabled = false;
-      }, {
-        enableHighAccuracy: false,
-        maximumAge: 60_000,
-        timeout: 10_000
-      });
-      return false;
-    }, {listenerSetter: this.listenerSetter});
-    currentLocation.hidden = !navigator.geolocation;
 
     this.setupMapInteraction();
     this.renderPreview();
@@ -151,7 +93,7 @@ class RichMessageLocationContent {
     const map = this.options.map;
     const captionValue = composeRichMessageMapCaption(
       this.titleInputField.value,
-      this.addressInputField.value
+      this.address
     );
     return {
       ...map,
@@ -174,6 +116,16 @@ class RichMessageLocationContent {
   }
 
   private setupMapInteraction() {
+    // the wheel zooms the map: up brings it closer, down takes it away; a fast spin steps once per notch
+    let wheelDelta = 0;
+    this.listenerSetter.add(this.mapPreview)('wheel', (event) => {
+      event.preventDefault();
+      wheelDelta += event.deltaY;
+      if(Math.abs(wheelDelta) < 40) return;
+      const direction = wheelDelta < 0 ? 1 : -1;
+      wheelDelta = 0;
+      this.setZoom(this.previewZoom + direction);
+    }, {passive: false});
     let pointer: {
       id: number,
       x: number,
@@ -202,8 +154,10 @@ class RichMessageLocationContent {
       const dragY = event.clientY - pointer.y;
       const dragged = Math.abs(dragX) + Math.abs(dragY) > 4;
       const rect = this.mapPreview.getBoundingClientRect();
-      const deltaX = dragged ? -dragX : event.clientX - rect.left - rect.width / 2;
-      const deltaY = dragged ? -dragY : event.clientY - rect.top - rect.height / 2;
+      // the preview is drawn at mapWidth x mapHeight but shown at whatever size the popup gives it
+      const scale = rect.width ? this.mapWidth / rect.width : 1;
+      const deltaX = (dragged ? -dragX : event.clientX - rect.left - rect.width / 2) * scale;
+      const deltaY = (dragged ? -dragY : event.clientY - rect.top - rect.height / 2) * scale;
       pointer = undefined;
       this.mapImage.style.transform = '';
       this.mapPreview.classList.remove(styles.previewDragging);
@@ -260,42 +214,71 @@ class RichMessageLocationContent {
       this.longitude.toFixed(6),
       `z ${this.previewZoom}`
     ].join(', ');
-    this.previewMiddleware.clean();
     this.mapImage.replaceChildren();
     const image = document.createElement('div');
     image.classList.add(styles.photo);
+    image.style.position = 'relative';
+    image.style.overflow = 'hidden';
+    image.append(...this.createTiles(), this.createAttribution());
     this.mapImage.append(image);
-    const geo: GeoPoint.geoPoint = {
-      _: 'geoPoint',
-      access_hash: 0,
-      lat: this.latitude,
-      long: this.longitude
-    };
-    const middleware = this.previewMiddleware.get();
-    const location = getWebFileLocation(
-      geo,
-      this.mapWidth,
-      this.mapHeight,
-      this.previewZoom
-    );
-    void import('@components/wrappers/photo').then(({default: wrapPhoto}) => {
-      if(!middleware()) return;
-      return wrapPhoto({
-        boxHeight: this.mapHeight,
-        boxWidth: this.mapWidth,
-        container: image,
-        lazyLoadQueue: false,
-        middleware,
-        photo: location,
-        withoutPreloader: true
-      });
-    }).catch(() => {});
+  }
+
+  /**
+   * The preview is cut from OpenStreetMap tiles rather than Telegram's web file: the server only
+   * serves a map for a point it already knows (a real `access_hash`), so a freshly picked one would
+   * never load. Tiles are laid out in percents of the preview box, so it scales with the popup.
+   */
+  private createTiles() {
+    const tileSize = 256;
+    const zoom = this.previewZoom;
+    const tilesPerSide = 2 ** zoom;
+    const worldSize = tileSize * tilesPerSide;
+    const normalized = normalizeRichMessageMapCenter({latitude: this.latitude, longitude: this.longitude});
+    const sine = Math.sin(normalized.latitude * Math.PI / 180);
+    const centerX = (normalized.longitude + 180) / 360 * worldSize;
+    const centerY = (.5 - Math.log((1 + sine) / (1 - sine)) / (4 * Math.PI)) * worldSize;
+    const left = centerX - this.mapWidth / 2;
+    const top = centerY - this.mapHeight / 2;
+
+    const tiles: HTMLElement[] = [];
+    for(let tileY = Math.floor(top / tileSize); tileY <= Math.floor((top + this.mapHeight) / tileSize); ++tileY) {
+      if(tileY < 0 || tileY >= tilesPerSide) continue;
+      for(let tileX = Math.floor(left / tileSize); tileX <= Math.floor((left + this.mapWidth) / tileSize); ++tileX) {
+        const tile = document.createElement('img');
+        tile.draggable = false;
+        tile.alt = '';
+        tile.referrerPolicy = 'origin';
+        tile.src = `https://tile.openstreetmap.org/${zoom}/${((tileX % tilesPerSide) + tilesPerSide) % tilesPerSide}/${tileY}.png`;
+        tile.style.cssText = [
+          'position:absolute',
+          'display:block',
+          'user-select:none',
+          `left:${(tileX * tileSize - left) / this.mapWidth * 100}%`,
+          `top:${(tileY * tileSize - top) / this.mapHeight * 100}%`,
+          `width:${tileSize / this.mapWidth * 100}%`,
+          `height:${tileSize / this.mapHeight * 100}%`
+        ].join(';');
+        tiles.push(tile);
+      }
+    }
+
+    return tiles;
+  }
+
+  private createAttribution() {
+    const attribution = document.createElement('a');
+    attribution.href = 'https://www.openstreetmap.org/copyright';
+    attribution.target = '_blank';
+    attribution.rel = 'noopener noreferrer';
+    attribution.textContent = '© OpenStreetMap';
+    attribution.style.cssText = 'position:absolute;inset-inline-end:.25rem;bottom:.125rem;font-size:.625rem;' +
+      'color:#333;background:rgba(255,255,255,.7);padding:0 .25rem;border-radius:.25rem;text-decoration:none;pointer-events:auto';
+    return attribution;
   }
 
   public destroy() {
     this.destroyed = true;
     this.listenerSetter.removeAll();
-    this.previewMiddleware.destroy();
   }
 }
 
