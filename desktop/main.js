@@ -105,7 +105,10 @@ app.whenReady().then(async () => {
   try { previous = fs.readFileSync(stampFile, 'utf8'); } catch {}
   if(previous !== stamp) {
     await win.webContents.session.clearCache();
-    await win.webContents.session.clearStorageData({storages: ['serviceworkers', 'cachestorage']});
+    // Only the service worker is dropped: CacheStorage also holds the downloaded avatars, pictures and
+    // other media (`cachedFiles`, ...), which must survive an update so a start without internet still
+    // has them. The new worker clears its own code cache (`cachedAssets`) when it activates.
+    await win.webContents.session.clearStorageData({storages: ['serviceworkers']});
     fs.writeFileSync(stampFile, stamp);
   }
   win.on('page-title-updated', (e) => e.preventDefault());
