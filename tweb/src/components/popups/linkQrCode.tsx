@@ -1,6 +1,7 @@
 import {createSignal, onMount} from 'solid-js';
-import PopupElement, {createPopup} from '@components/popups/indexTsx';
+import PopupElement, {createPopup, usePopupContext} from '@components/popups/indexTsx';
 import {toastNew} from '@components/toast';
+import {copyTextToClipboard} from '@helpers/clipboard';
 import classNames from '@helpers/string/classNames';
 import copyQrCode from '@helpers/qrCode/copyQrCode';
 import {paintQrCode} from '@helpers/qrCode/paintQrCode';
@@ -19,7 +20,11 @@ import styles from '@components/popups/linkQrCode.module.scss';
 export type LinkQrCodePopupOptions = {
   url: string,
   /** The line under the code. iOS words it per link kind. */
-  aboutLangKey: LangPackKey
+  aboutLangKey: LangPackKey,
+  /** The popup's title; the invite-link one by default. */
+  titleLangKey?: LangPackKey,
+  /** Hands the caller what closes the popup, for one that has to close it itself once the code has done its work. */
+  onClose?: (close: () => void) => void
 };
 
 /** 240pt of code inside a 256pt card (QrCodeScreen.swift:653-654). */
@@ -42,6 +47,8 @@ export default function showLinkQrCodePopup(options: LinkQrCodePopupOptions) {
   };
 
   function Code() {
+    const popup = usePopupContext();
+    options.onClose?.(() => popup.hide());
     let host!: HTMLDivElement;
     const [painted, setPainted] = createSignal(false);
 
@@ -87,6 +94,14 @@ export default function showLinkQrCodePopup(options: LinkQrCodePopupOptions) {
             langKey={painted() ? 'QRCode.Copy' : 'CopyLink'}
             callback={onCopyClick}
           />
+          <PopupElement.FooterButton
+            iconLeft="copy"
+            langKey="CopyLink"
+            callback={() => {
+              copyTextToClipboard(url);
+              toastNew({langPackKey: 'LinkCopied'});
+            }}
+          />
         </PopupElement.Footer>
       </>
     );
@@ -101,7 +116,7 @@ export default function showLinkQrCodePopup(options: LinkQrCodePopupOptions) {
     >
       <PopupElement.Header>
         <PopupElement.CloseButton />
-        <PopupElement.Title title="InviteLink.QRCode.Title" />
+        <PopupElement.Title title={options.titleLangKey || 'InviteLink.QRCode.Title'} />
       </PopupElement.Header>
       <Code />
     </PopupElement>

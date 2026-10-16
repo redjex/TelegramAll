@@ -25,15 +25,22 @@ function serve() {
       if(!f.startsWith(DIST)) { res.writeHead(403); return res.end(); }
       if(!fs.existsSync(f) || fs.statSync(f).isDirectory()) f = path.join(DIST, 'index.html');
       // files with a content hash in the name never change, so the browser may keep them for good
-      const hashed = /-[A-Za-z0-9_-]{8}.[a-z0-9]+$/.test(f) && !f.endsWith('index.html');
+      const hashed = /-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/.test(f) && !f.endsWith('index.html');
       res.writeHead(200, {'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Service-Worker-Allowed': '/', 'Cache-Control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache'});
       fs.createReadStream(f).pipe(res);
+    });
+    srv.on('error', (error) => {
+      // the port is held by something else (or by an instance still shutting down): say so instead of crashing
+      require('electron').dialog.showErrorBox('TelegramAll', 'Port ' + PORT + ' is busy: ' + error.message + '\nClose the other TelegramAll window and start again.');
+      app.exit(1);
     });
     srv.listen(PORT, '127.0.0.1', resolve);
   });
 }
 
-if(!app.requestSingleInstanceLock()) app.quit();
+// only one instance per profile: a second launch just brings the first one forward and exits at once
+const isFirstInstance = app.requestSingleInstanceLock();
+if(!isFirstInstance) app.quit();
 
 // The window remembers where it was, how big it was and whether it was maximised (per profile).
 const STATE_FILE = () => path.join(app.getPath('userData'), 'window-state.json');
@@ -82,7 +89,7 @@ function trackWindowState(win, initial) {
   win.on('close', save);
 }
 
-app.whenReady().then(async () => {
+if(isFirstInstance) app.whenReady().then(async () => {
   const serverReady = serve(); // the server starts while the window is being created
   Menu.setApplicationMenu(null);
   const state = loadWindowState();

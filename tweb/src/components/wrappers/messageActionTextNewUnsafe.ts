@@ -720,6 +720,17 @@ export default async function wrapMessageActionTextNewUnsafe(options: WrapMessag
         break;
       }
 
+      case 'messageActionWalletTonConnectRequest': {
+        // a dApp's request to the wallet: pending, confirmed or declined in it
+        langPackKey = action.pFlags.accepted ?
+          'ActionWalletRequestAccepted' :
+          action.pFlags.declined ?
+            'ActionWalletRequestDeclined' :
+            'ActionWalletRequestPending';
+        args = [action.dapp_name || 'TON Connect'];
+        break;
+      }
+
       case 'messageActionWebViewDataSent': {
         langPackKey = 'ActionBotWebViewData';
         args = [wrapSomeText(action.text, plain)];

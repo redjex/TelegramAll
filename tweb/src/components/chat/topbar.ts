@@ -526,6 +526,11 @@ export default class ChatTopbar {
         return this.chat.type === ChatType.Chat && !!(chatFull as ChatFull.channelFull)?.linked_chat_id;
       }
     }, {
+      icon: 'gram',
+      text: 'Wallet.SendMoney',
+      onClick: () => import('@components/popups/sendGrams').then(({default: showSendGramsPopup}) => showSendGramsPopup(this.peerId)),
+      verify: async() => this.chat.type === ChatType.Chat && this.peerId.isUser() && rootScope.myId !== this.peerId && !(await this.managers.appPeersManager.isBot(this.peerId))
+    }, {
       icon: 'phone',
       text: 'Call',
       onClick: this.onCallClick.bind(this, 'voice'),

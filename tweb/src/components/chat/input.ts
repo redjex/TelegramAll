@@ -1446,6 +1446,15 @@ export default class ChatInput {
         ]).then(([canGift, {premium_gift_attach_menu_icon}]) => canGift && premium_gift_attach_menu_icon);
       }
     }, {
+      icon: 'gram',
+      text: 'Wallet.SendMoney',
+      onClick: () => import('@components/popups/sendGrams').then(({default: showSendGramsPopup}) => showSendGramsPopup(this.chat.peerId)),
+      verify: async() => {
+        if(this.editMsgId || this.ephemeralComposer || this.isWelcomeComposer) return;
+        const peerId = this.chat.peerId;
+        return this.chat.type === ChatType.Chat && peerId.isUser() && peerId !== rootScope.myId && !(await this.managers.appPeersManager.isBot(peerId));
+      }
+    }, {
       icon: 'poll',
       richMessageAction: 'poll',
       text: 'Poll',

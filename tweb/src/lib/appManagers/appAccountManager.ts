@@ -110,6 +110,12 @@ export default class AppAccountManager extends AppManager {
     return promise;
   }
 
+  /** This account's own wallet balance in nanograms, if it has a wallet. */
+  public async getWalletBalance(): Promise<string | undefined> {
+    const state = await this.apiManager.invokeApi('wallet.getState');
+    return state._ === 'walletState' ? String(state.balance) : undefined;
+  }
+
   private userWalletAddresses = new Map<UserId, Promise<string | undefined>>();
 
   /** The wallet address a Telegram user has linked (wallet.getUserAddresses the other way round), if any. */

@@ -121,5 +121,10 @@
     "vitest": "^4.1.10",
     "ws": "^8.21.1"
   },
-  "packageManager": "pnpm@11.16.0"
+  "packageManager": "pnpm@11.16.0",
+  "dependencies": {
+    "@ton/core": "^0.63.1",
+    "@tonconnect/sdk": "^5.0.0",
+    "buffer": "^6.0.3"
+  }
 }

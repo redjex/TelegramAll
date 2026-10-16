@@ -8,9 +8,9 @@ import contextMenuController from '@helpers/contextMenuController';
 import positionMenu from '@helpers/positionMenu';
 import {WALLET_EXPLORER_URL} from '@lib/richTextProcessor/parseEntities';
 
-// The client holds no keys and cannot sign a transfer, so "send" hands the address to a wallet's own
-// transfer page instead of pretending to.
-const TRANSFER_URL = 'https://app.tonkeeper.com/transfer/';
+// The client holds no keys and cannot sign a transfer, so "send" hands the address to Telegram's own Gram wallet
+// (Money in the official app) through its tg://sendgrams link, which opens the send form with the recipient filled in.
+const TRANSFER_URL = 'tg://sendgrams?to=';
 
 function openExternal(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer');

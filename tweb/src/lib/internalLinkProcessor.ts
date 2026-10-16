@@ -492,6 +492,16 @@ export class InternalLinkProcessor {
       name: 'resolve',
       protocol: 'tg',
       callback: ({uriParams, element, masked}) => {
+        // a TON Connect link of the Telegram wallet is meant for the device that holds the wallet: show it as a code to scan
+        if(uriParams.domain === 'sendgrams' && uriParams.startapp?.startsWith('tonconnect-')) {
+          import('@components/popups/linkQrCode').then(({default: showLinkQrCodePopup}) => showLinkQrCodePopup({
+            url: 'https://t.me/sendgrams?startapp=' + uriParams.startapp,
+            titleLangKey: 'Wallet.ConnectTitle',
+            aboutLangKey: 'Wallet.ConnectQrAbout'
+          }));
+          return;
+        }
+
         let link: InternalLink;
         if(uriParams.voicechat !== undefined || uriParams.videochat !== undefined || uriParams.livestream !== undefined) {
           link = this.makeLink(INTERNAL_LINK_TYPE.VOICE_CHAT, uriParams as Required<typeof uriParams>);
