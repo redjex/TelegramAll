@@ -1,7 +1,8 @@
 const { app, BrowserWindow, shell, Menu, screen } = require('electron');
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { createContentServer } = require('./server');
+const { createLiveReloader } = require('./liveReload');
 
 // A separate profile for testing: `TelegramAll.exe --profile=dev` (or TELEGRAMALL_PROFILE=dev) keeps its own logins, chats
 // and caches and its own port, so it never touches the main profile.
@@ -14,21 +15,13 @@ app.setPath('userData', path.join(app.getPath('appData'), PROFILE ? 'TelegramAll
 
 // fixed port => stable origin => login/IndexedDB persist; every profile gets its own origin
 const PORT = PROFILE ? 47822 + (PROFILE.length % 50) : 47821;
-const DIST = app.isPackaged ? path.join(process.resourcesPath, 'dist') : path.join(__dirname, '..', 'tweb', 'dist');
-const MIME = {'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.ico':'image/x-icon','.woff2':'font/woff2','.woff':'font/woff','.wasm':'application/wasm','.webmanifest':'application/manifest+json','.mp3':'audio/mpeg','.ogg':'audio/ogg','.tgs':'application/octet-stream','.webp':'image/webp','.map':'application/json','.ttf':'font/ttf','.otf':'font/otf','.gif':'image/gif','.mp4':'video/mp4','.xml':'text/xml','.txt':'text/plain'};
+const DEV_MODE = !app.isPackaged && process.argv.includes('--dev');
+const DIST = DEV_MODE ? path.resolve(process.env.TELEGRAMALL_DEV_DIST || path.join(__dirname, '../tweb/tmp/desktop-dist')) :
+  app.isPackaged ? path.join(process.resourcesPath, 'dist') : path.join(__dirname, '../tweb/dist');
 
 function serve() {
   return new Promise((resolve) => {
-    const srv = http.createServer((req, res) => {
-      let p = decodeURIComponent(req.url.split('?')[0]);
-      let f = path.join(DIST, path.normalize(p));
-      if(!f.startsWith(DIST)) { res.writeHead(403); return res.end(); }
-      if(!fs.existsSync(f) || fs.statSync(f).isDirectory()) f = path.join(DIST, 'index.html');
-      // files with a content hash in the name never change, so the browser may keep them for good
-      const hashed = /-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/.test(f) && !f.endsWith('index.html');
-      res.writeHead(200, {'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Service-Worker-Allowed': '/', 'Cache-Control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache'});
-      fs.createReadStream(f).pipe(res);
-    });
+    const srv = createContentServer({dist: DIST, publicDir: DEV_MODE ? path.join(__dirname, '../tweb/public') : undefined});
     srv.on('error', (error) => {
       // the port is held by something else (or by an instance still shutting down): say so instead of crashing
       require('electron').dialog.showErrorBox('TelegramAll', 'Port ' + PORT + ' is busy: ' + error.message + '\nClose the other TelegramAll window and start again.');
@@ -90,14 +83,31 @@ function trackWindowState(win, initial) {
 }
 
 if(isFirstInstance) app.whenReady().then(async () => {
+  // The development launcher asks for a graceful shutdown before restarting the shell.
+  if(DEV_MODE) process.on('message', (message) => { if(message === 'dev:quit') app.quit(); });
   const serverReady = serve(); // the server starts while the window is being created
   Menu.setApplicationMenu(null);
   const state = loadWindowState();
   const win = new BrowserWindow({
     width: state.width, height: state.height, x: state.x, y: state.y, minWidth: 400, minHeight: 500,
     title: PROFILE ? 'TelegramAll (' + PROFILE + ')' : 'TelegramAll', icon: path.join(__dirname, 'build', 'icon.png'),
-    backgroundColor: '#ffffff', autoHideMenuBar: true, show: false
+    backgroundColor: '#ffffff', autoHideMenuBar: true, show: DEV_MODE,
+    webPreferences: {backgroundThrottling: !DEV_MODE}
   });
+  if(DEV_MODE) {
+    const reload = createLiveReloader(win.webContents, (revision) => {
+      if(process.connected) process.send({type: 'dev:reloaded', revision});
+    });
+    process.on('message', (message) => {
+      if(message?.type === 'dev:reload') reload(message.revision);
+    });
+    win.webContents.on('did-fail-load', (_event, code, description) => {
+      console.error('[desktop-dev] Page failed to load:', code, description);
+    });
+    win.webContents.on('console-message', (details) => {
+      if(details.level === 'error') console.error('[desktop-dev] Renderer:', details.message);
+    });
+  }
   win.once('ready-to-show', () => {
     if(state.isMaximized) win.maximize();
     if(state.isFullScreen) win.setFullScreen(true);
@@ -107,7 +117,7 @@ if(isFirstInstance) app.whenReady().then(async () => {
   // Chats, messages and contacts stay in IndexedDB between runs, so the app opens from the local copy and only
   // fetches updates. The code caches are dropped only when the app build itself changed.
   const stampFile = path.join(app.getPath('userData'), 'build-stamp.txt');
-  const stamp = String(fs.statSync(path.join(DIST, 'index.html')).mtimeMs);
+  const stamp = (DEV_MODE ? 'dev:' : '') + fs.statSync(path.join(DIST, 'index.html')).mtimeMs;
   let previous = '';
   try { previous = fs.readFileSync(stampFile, 'utf8'); } catch {}
   if(previous !== stamp) {
@@ -120,9 +130,10 @@ if(isFirstInstance) app.whenReady().then(async () => {
   }
   win.on('page-title-updated', (e) => e.preventDefault());
   await serverReady;
-  win.loadURL(`http://localhost:${PORT}/`);
   win.webContents.setWindowOpenHandler(({url}) => { shell.openExternal(url); return {action: 'deny'}; });
   app.on('second-instance', () => { if(win.isMinimized()) win.restore(); win.focus(); });
+  await win.loadURL(`http://localhost:${PORT}/`);
+  if(DEV_MODE && process.connected) process.send({type: 'dev:ready'});
 });
 app.on('window-all-closed', () => app.quit());
 
