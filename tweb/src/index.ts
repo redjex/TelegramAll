@@ -61,6 +61,8 @@ import {isUserCollapsedLeft} from '@helpers/updateColumnWidths';
 import {useMediaSizes} from '@helpers/mediaSizes';
 import useHasFoldersSidebar, {useIsSidebarCollapsed} from '@stores/foldersSidebar';
 import appNavigationController from '@components/appNavigationController';
+import initAndroidInsets from '@helpers/androidBars';
+import installAndroidSwipeBack from '@helpers/androidSwipeBack';
 import {preventCrossTabDynamicImportDeadlock} from '@helpers/preventDeadlock';
 import appChatBackground from '@components/chat/bubbles/chatBackground';
 
@@ -288,6 +290,8 @@ function setRootClasses() {
     }
   } else if(IS_ANDROID) {
     add.push('is-android');
+    initAndroidInsets();
+    installAndroidSwipeBack();
 
     // force losing focus on input blur
     // focusin and focusout are not working on mobile

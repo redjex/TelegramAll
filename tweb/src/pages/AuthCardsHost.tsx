@@ -158,7 +158,7 @@ export default function AuthCardsHost(): JSX.Element {
 
   return (
     <AuthFlowContext.Provider value={ctx}>
-      <main ref={hostEl} style={{opacity: 0}} class={classNames('whole', styles.host, IS_ANDROID && currentCard()?.name === 'signIn' && styles.hasKeyboard)} id="auth-pages">
+      <main ref={hostEl} style={{opacity: 0}} class={classNames('whole', styles.host)} id="auth-pages">
         {showBackButton && (
           <Button.Icon icon="back" class={styles.closeButton} onClick={back} aria-label={I18n.format('StarsRating.Back', true)} />
         )}
@@ -248,7 +248,7 @@ function CardsTransition(): JSX.Element {
   return (
     <Show when={stableCard()}>
       <Transition
-        mode="outin"
+        mode={IS_ANDROID ? undefined : 'outin'}
         enterActiveClass={styles.cardEnterActive}
         exitActiveClass={styles.cardExitActive}
         enterClass={styles.cardEnter}

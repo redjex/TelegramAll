@@ -55,16 +55,14 @@
       <option value="360x780">Small · 360×780</option>
       <option value="393x852">393×852</option>
     </select>
-    <a href="/android.html" target="_blank">Open full tab</a>
   </div>
   <div class="phone" id="phone">
     <div class="status"><span id="clock">9:41</span><span>▮▮▮ 5G ▭</span></div>
-    <iframe id="app" allow="clipboard-read; clipboard-write; microphone; camera"></iframe>
+    <iframe id="app" name="tgall-android-preview" allow="clipboard-read; clipboard-write; microphone; camera"></iframe>
     <div class="home"></div>
   </div>
   <script>
-    // the app reads this to switch to the Android version (the frame shares it with this page)
-    sessionStorage.setItem('forceAndroid', '1');
+    // the frame is named for the app to switch to the Android version inside it (nothing else is changed)
     document.getElementById('app').src = '/';
     const phone = document.getElementById('phone');
     const app = document.getElementById('app');

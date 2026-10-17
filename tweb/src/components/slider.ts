@@ -84,6 +84,27 @@ export default class SidebarSlider {
     return true;
   };
 
+  /** the screen shown now, if it is a tab */
+  public getTopTab() {
+    const top = this.historyTabIds[this.historyTabIds.length - 1];
+    return top instanceof SliderSuperTab ? top : undefined;
+  }
+
+  private navigationItems = new Map<SliderSuperTab, NavigationItem>();
+
+  /**
+   * Takes a tab out from under the one shown now - out of the history and the navigation - with no
+   * animation: the screens of the Android tab bar replace each other, they do not pile up.
+   */
+  public closeTabSilently(tab: SliderSuperTab) {
+    const item = this.navigationItems.get(tab);
+    this.navigationItems.delete(tab);
+    indexOfAndSplice(this.historyTabIds, tab);
+    if(item) appNavigationController.removeItem(item);
+    this.onCloseTab(tab, false, true);
+    this.onTabsCountChange?.();
+  }
+
   protected pushNavigationItem(tab: SliderSuperTab) {
     const navigationItem: NavigationItem = {
       type: this.navigationType,
@@ -109,6 +130,7 @@ export default class SidebarSlider {
     };
 
     // if(!this.canHideFirst || this.historyTabIds.length) {
+    this.navigationItems.set(tab, navigationItem);
     appNavigationController.pushItem(navigationItem);
     this.onTabsCountChange?.();
     // }

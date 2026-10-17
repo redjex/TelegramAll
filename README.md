@@ -24,8 +24,9 @@ npx electron-builder --win dir   # desktop/release/win-unpacked/TelegramAll.exe
 The login screens copy the official Telegram for Android and switch on only for an Android user agent.
 
 To work on it without a phone or an emulator, run `start-web.bat` (it starts the dev server) and open
-<http://localhost:8080/android-preview.html>: the app in a phone frame, with the Android version forced on.
-`/android.html` does the same in the whole tab. Only the page that forces it needs this; the app itself looks at the user agent.
+<http://localhost:8080/android-preview.html>: the app in a phone frame with the Android version switched on.
+Only inside that frame, and for an Android user agent (Chrome's device mode, a phone): the usual web client at
+`http://localhost:8080/` stays as it was.
 
 ## Separate test profile
 

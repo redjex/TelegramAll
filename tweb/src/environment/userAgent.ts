@@ -2,17 +2,16 @@ import ctx from '@environment/ctx';
 
 export const USER_AGENT = navigator ? navigator.userAgent : null;
 export const IS_APPLE = navigator.userAgent.search(/OS X|iPhone|iPad|iOS/i) !== -1;
-// `?android=1` turns the Android version on in a desktop browser (see public/android-preview.html);
-// the choice is kept for the tab, so it survives the address changing
-const FORCE_ANDROID = (() => {
+// The phone frame of public/android-preview.html names its iframe like this, which turns the Android
+// version on inside the frame only: the same page opened any other way stays the usual web client.
+export const IN_ANDROID_PREVIEW_FRAME = (() => {
   try {
-    if(/[?&]android=1/.test(location.search)) sessionStorage.setItem('forceAndroid', '1');
-    return sessionStorage.getItem('forceAndroid') === '1';
+    return window.name === 'tgall-android-preview';
   } catch(err) {
     return false;
   }
 })();
-export const IS_ANDROID = FORCE_ANDROID || navigator.userAgent.toLowerCase().indexOf('android') !== -1;
+export const IS_ANDROID = IN_ANDROID_PREVIEW_FRAME || navigator.userAgent.toLowerCase().indexOf('android') !== -1;
 export const IS_CHROMIUM = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
 export const CHROMIUM_VERSION = (() => {
   try {

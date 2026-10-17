@@ -1,4 +1,5 @@
 import {createSignal, onCleanup, onMount, Show} from 'solid-js';
+import {Portal} from 'solid-js/web';
 
 import {HelpCountry} from '@layer';
 import {i18n} from '@lib/langPack';
@@ -77,7 +78,9 @@ export default function PhoneForm(props: {
         </div>
       </div>
 
-      <PhoneKeyboard onDigit={model.typeDigit} onBackspace={model.backspace} />
+      <Portal mount={document.getElementById('auth-pages') || document.body}>
+        <PhoneKeyboard onDigit={model.typeDigit} onBackspace={model.backspace} />
+      </Portal>
 
       <Show when={picking()}>
         <CountryPicker onSelect={onPick} onClose={() => setPicking(false)} />

@@ -1,0 +1,170 @@
+// The bottom tab bar of Telegram for Android (MainTabsActivity / GlassTabView): a floating glass pill,
+// 56dp high, 8dp from the edges, at most 328dp wide, four tabs with an animated icon and a 12sp label.
+
+.bar {
+  position: fixed;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  bottom: calc(8px + var(--sab));
+  display: flex;
+  justify-content: center;
+  padding: 0 8px;
+  pointer-events: none;
+  transition: transform .3s cubic-bezier(.22, 1, .36, 1), opacity .2s;
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(calc(100% + 24px));
+}
+
+.pill {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 300px;
+  height: 56px;
+  padding: 4px;
+  border-radius: 28px;
+  pointer-events: auto;
+  background:
+    linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 55%),
+    var(--tab-glass);
+  -webkit-backdrop-filter: blur(14px) var(--as-glass-after);
+  backdrop-filter: blur(14px) var(--as-glass-after);
+  box-shadow: 0 6px 20px var(--as-glass-shadow);
+
+  // the same rim as the toolbar bubbles
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--as-rim-hi) 0, var(--as-rim-lo) 32%, var(--as-rim-lo) 68%, var(--as-rim-hi) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    pointer-events: none;
+  }
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: none;
+  color: var(--as-text);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+// the plain tabs: the droplet's window is cut out of this layer while it is shown in the lit one
+.base {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+// the lit copy of the tabs: filled and blue, cut out to the droplet (androidTabBar.tsx moves the window)
+.glow {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: flex;
+  box-sizing: border-box;
+  padding: 4px;
+  color: var(--as-blue);
+  pointer-events: none;
+  clip-path: path('M0 0Z');
+
+  .tab {
+    color: var(--as-blue);
+    pointer-events: none;
+  }
+
+  // under the droplet the icon swells, as it does under the lens on iOS
+  .icon {
+    transform: scale(1.2);
+  }
+
+  .label {
+    font-weight: 700;
+  }
+}
+
+// the droplet: a lens of glass under the selected tab; it swells while it is held
+.droplet {
+  --press: 0;
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  left: 4px;
+  box-sizing: border-box;
+  height: 48px;
+  border-radius: 24px;
+  pointer-events: none;
+  will-change: transform;
+  background:
+    linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 60%),
+    rgba(var(--droplet-tint), calc(.1 + .08 * var(--press)));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, calc(.08 + .12 * var(--press)));
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--as-rim-hi) 0, var(--as-rim-lo) 32%, var(--as-rim-lo) 68%, var(--as-rim-hi) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
+}
+
+.icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 0;
+  transition: transform .3s cubic-bezier(.22, 1, .36, 1);
+}
+
+.avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.label {
+  position: relative;
+  margin-top: 0;
+  font-size: 12px;
+  line-height: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.selected .label {
+  font-weight: 700;
+}
