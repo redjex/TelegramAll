@@ -67,6 +67,7 @@ import {showPeerReport} from '@components/popups/reportAd';
 import CommunityPeerDialogList
 from '@components/communities/communityPeerDialogList';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
+import getBotApiDialogId from '@appManagers/utils/peers/getBotApiDialogId';
 
 keepMe(ripple);
 
@@ -764,29 +765,29 @@ PeerProfile.Username = () => {
   );
 };
 
-PeerProfile.UserId = () => {
+PeerProfile.Id = () => {
   const context = useContext(PeerProfileContext);
   const {toastNew} = useHotReloadGuard();
-  const userId = () => String(context.peerId.toUserId());
-  const copyUserId = () => {
-    copyTextToClipboard(userId());
+  const dialogId = createMemo(() => getBotApiDialogId(context.peer as User | Chat));
+  const copyId = () => {
+    copyTextToClipboard(dialogId());
     toastNew({langPackKey: 'TextCopied'});
   };
 
   return (
-    <Show when={context.peerId.isUser() && context.canBeDetailed()}>
+    <Show when={context.canBeDetailed() && dialogId()}>
       <Row
-        clickable={copyUserId}
+        clickable={copyId}
         contextMenu={{
           buttons: [{
             icon: 'copy',
             text: 'Copy',
-            onClick: copyUserId
+            onClick: copyId
           }]
         }}
       >
         <Row.Icon icon="info" />
-        <Row.Title><span dir="ltr">{userId()}</span></Row.Title>
+        <Row.Title><span dir="ltr">{dialogId()}</span></Row.Title>
         <Row.Subtitle>ID</Row.Subtitle>
       </Row>
     </Show>
@@ -1754,11 +1755,11 @@ PeerProfile.MainSection = () => {
       <Show when={!(context.isBotforum && context.threadId)}>
         <PeerProfile.Phone />
         <PeerProfile.Username />
-        <PeerProfile.UserId />
+        <PeerProfile.Link />
+        <PeerProfile.Id />
         <PeerProfile.Wallet />
         <PeerProfile.Location />
         <PeerProfile.Bio />
-        <PeerProfile.Link />
         <PeerProfile.Birthday />
         <PeerProfile.ContactNote />
         <PeerProfile.BusinessHours />
