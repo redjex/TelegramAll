@@ -6,8 +6,11 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win dir",
-    "dev": "electron . --profile=dev",
-    "start:dev": "electron . --profile=dev"
+    "dev": "node dev.js",
+    "start:dev": "node dev.js",
+    "start:profile": "electron . --profile=dev",
+    "test": "node --test server.test.js liveReload.test.js",
+    "test:electron": "node verifyLiveReload.js"
   },
   "keywords": [],
   "author": "me",
@@ -24,6 +27,8 @@
     "icon": "build/icon.png",
     "files": [
       "main.js",
+      "server.js",
+      "liveReload.js",
       "build/icon.png"
     ],
     "extraResources": [
