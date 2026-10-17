@@ -1,3 +1,4 @@
+import setupAndroidChatsHeader from '@components/sidebarLeft/androidChatsHeader';
 import {IS_ANDROID} from '@environment/userAgent';
 import {createEffect, createRoot, createSignal, on} from 'solid-js';
 import appImManager from '@lib/appImManager';
@@ -160,6 +161,7 @@ export class AppSidebarLeft extends SidebarSlider {
     this.managers = managers;
 
     if(IS_ANDROID) {
+      setupAndroidChatsHeader();
       import('@components/sidebarLeft/androidTabBar').then((module) => module.default(this));
     }
 
@@ -1796,6 +1798,12 @@ export class AppSidebarLeft extends SidebarSlider {
   public async closeTabsBefore(clb: () => void) {
     this.closeEverythingInside() && await pause(200);
     clb();
+  }
+
+  public openMyStories() {
+    this.closeTabsBefore(() => {
+      this.createTab(AppMyStoriesTab).open(AppMyStoriesTab.getInitArgs());
+    });
   }
 
   public openArchiveTab() {

@@ -20,7 +20,13 @@ export function useCollapsable(props: {
   container: () => HTMLElement,
   shouldIgnore?: () => boolean,
   skipAnimationClassName?: string,
-  disableHoverWhenFolded?: boolean
+  disableHoverWhenFolded?: boolean,
+  /**
+   * Touch (and a mouse drag): the pull follows the finger over this many px instead of flipping at the first move, and
+   * lets go to whichever side it has passed the half of (`onDragging` says when a pull is on).
+   */
+  dragSpan?: number,
+  onDragging?: (dragging: boolean) => void
 }) {
   const [progress, _setProgress] = createSignal(STATE_FOLDED);
   const [isTransition, setIsTransition] = createSignal(false);
@@ -156,7 +162,54 @@ export function useCollapsable(props: {
   };
   subscribeOn(props.listenWheelOn)('wheel', onWheel, {passive: false});
 
-  if(IS_TOUCH_SUPPORTED) {
+  if(props.dragSpan) {
+    let startProgress = STATE_FOLDED;
+    let dragging = false;
+    let canDrag = false;
+
+    const swipeHandler = new SwipeHandler({
+      element: props.listenWheelOn,
+      onStart: () => {
+        startProgress = progress();
+        dragging = false;
+        // a pull begins only on a list that is at its top
+        canDrag = !props.scrollable().scrollTop;
+      },
+      onSwipe: (xDiff, yDiff, e) => {
+        if(!canDrag) return;
+        if(!dragging) {
+          if(Math.abs(yDiff) < 8 || Math.abs(yDiff) < Math.abs(xDiff)) return;
+          dragging = true;
+          clearAnimation();
+          props.onDragging?.(true);
+        }
+
+        (e as any as TouchEvent).cancelable && cancelEvent(e as any as Event);
+        // the finger down opens (towards STATE_UNFOLDED), up folds
+        _setProgress(clamp(startProgress - yDiff / props.dragSpan, STATE_UNFOLDED, STATE_FOLDED));
+      },
+      onReset: () => {
+        if(!dragging) return;
+        dragging = false;
+        props.onDragging?.(false);
+        // let go past the half: it goes the way it was pulled, otherwise it springs back
+        const pulledOpen = startProgress > progress();
+        const passed = Math.abs(progress() - startProgress) > .5;
+        const target = passed ? (pulledOpen ? STATE_UNFOLDED : STATE_FOLDED) : startProgress;
+        setProgress(target);
+      },
+      cancelEvent: false,
+      cursor: '',
+      // a finger, or a mouse drag in the browser preview of the Android app
+      verifyTouchTarget: (e) => {
+        return !props.shouldIgnore?.() && !findUpClassName(e.target, 'folders-tabs-scrollable');
+      }
+    });
+
+    onCleanup(() => {
+      swipeHandler.removeListeners();
+    });
+  } else if(IS_TOUCH_SUPPORTED) {
     const swipeHandler = new SwipeHandler({
       element: props.listenWheelOn,
       onSwipe: (xDiff, yDiff, e) => {

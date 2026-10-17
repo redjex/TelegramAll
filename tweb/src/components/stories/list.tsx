@@ -1,3 +1,5 @@
+import {updateAndroidTitleShift} from '@components/sidebarLeft/androidChatsHeader';
+import {IS_ANDROID} from '@environment/userAgent';
 import {JSX, createSignal, For, createEffect, Accessor, onMount, createMemo, splitProps, on, Show, onCleanup} from 'solid-js';
 import Scrollable from '@components/scrollable2';
 import {createStoriesViewer} from '@components/stories/viewer';
@@ -64,9 +66,19 @@ function _StoriesList(props: {
 
   let toRect: DOMRect, fromRect: DOMRect;
   const myIndex = createMemo(() => peers().findIndex((peer) => peer.peerId === rootScope.myId));
+  // Android shows an item of its own, "My Story" with a plus, first in the row while there is no story of mine
+  const hasMyStoryItem = createMemo(() => IS_ANDROID && myIndex() === -1);
+  // the title of the chat list stands after the stack, so it needs the number of avatars in it
+  if(IS_ANDROID) {
+    createEffect(() => {
+      const count = foldedLength();
+      props.setScrolledOn.closest<HTMLElement>('.tabs-tab')?.style.setProperty('--stack-count', String(count));
+      requestAnimationFrame(() => updateAndroidTitleShift());
+    });
+  }
   const spaceEvenly = createMemo(() => {
     const rect = containerRect();
-    if(rect && rect.width > (peers().length * ITEM_WIDTH)) {
+    if(!IS_ANDROID && rect && rect.width > (peers().length * ITEM_WIDTH)) {
       return (rect.width - (peers().length * ITEM_WIDTH)) / (peers().length + 1);
     }
 
@@ -107,6 +119,23 @@ function _StoriesList(props: {
     actions.set({peer});
     setViewerPeer(peer);
   };
+
+  // "My Story" comes out of the same stack the avatars do, from right beside the title: it is the first
+  // item of the row, so it has the shortest way to go
+  const myStoryMovement = (): JSX.CSSProperties => {
+    const value = progress();
+    const desiredX = foldTarget();
+    const distanceX = desiredX - (fromRect.left + CONTAINER_PADDING) - 3;
+    const scale = 1 - value * (1 - 26.67 / 48);
+    return {
+      'z-index': 99,
+      'transform': 'translateX(calc(' + distanceX * value + 'px * var(--reflect))) scale(' + scale + ')'
+    };
+  };
+
+  // Where the stack of folded avatars ends. On Android the first avatar of the stack stands at the left
+  // margin whatever the number of avatars: each of them takes 16px of the stack, so the target moves.
+  const foldTarget = () => toRect.right + (IS_ANDROID ? -78 + 16 * (foldedLength() - 2) : props.offsetX || 0);
 
   const foldedLength = createMemo(() => Math.min(maxStackedItems(), peers().length - (myIndex() !== -1 ? 1 : 0)));
   const indexes = createMemo(() => {
@@ -151,7 +180,7 @@ function _StoriesList(props: {
       //   index -= 1;
       // }
 
-      const desiredX = toRect.right + (props.offsetX || 0);
+      const desiredX = foldTarget();
       const indexOffsetX = isOut ? 0 : (_indexes.max - index) * 16;
       let distanceX = desiredX - left + 5 - indexOffsetX;
 
@@ -234,7 +263,8 @@ function _StoriesList(props: {
     );
   };
 
-  const MOVE_Y = -69, CONTAINER_PADDING = 6, CONTAINER_HEIGHT = 92;
+  // folded, the avatars sit in the title row, on the level of the title
+  const MOVE_Y = IS_ANDROID ? -69 : -69, CONTAINER_PADDING = 6, CONTAINER_HEIGHT = 92;
   let scrolling = false;
   const calculateMovement = (): JSX.CSSProperties => {
     const value = progress();
@@ -247,13 +277,22 @@ function _StoriesList(props: {
       });
     }
 
-    const translateY = value * MOVE_Y;
+    // Android: open, the row stands 10px closer to the title row
+    const translateY = value * MOVE_Y - (IS_ANDROID ? (1 - value) * 10 : 0);
     const translate = `translateY(${translateY}px)`;
     props.setScrolledOn.style.setProperty('--stories-scrolled', (value * CONTAINER_HEIGHT) + 'px');
+    // the Android search pill sits under the stories and rides on the same value
+    if(IS_ANDROID) {
+      const tab = props.setScrolledOn.closest<HTMLElement>('.tabs-tab');
+      tab?.style.setProperty('--stories-scrolled', (value * CONTAINER_HEIGHT) + 'px');
+      // how folded they are, 0 to 1, for the title that makes room for the folded avatars
+      tab?.style.setProperty('--stories-folded', String(value));
+    }
 
     return {
       // 'height': `${containerHeight - (containerHeight * value)}px`,
       'transform': translate,
+      '--stories-additional-offset': (hasMyStoryItem() ? -ITEM_WIDTH : 0) + 'px',
       '--progress': value
       // '--scale': 1 - (value * (1 - 0.625))
     };
@@ -323,7 +362,12 @@ function _StoriesList(props: {
     container: () => container,
     listenWheelOn: props.listenWheelOn,
     shouldIgnore: () => !peers().length,
-    disableHoverWhenFolded: true
+    disableHoverWhenFolded: true,
+    // Android: the pull follows the finger the length of the row and has to be taken past its half
+    dragSpan: IS_ANDROID ? CONTAINER_HEIGHT : undefined,
+    onDragging: IS_ANDROID ? (dragging) => {
+      props.setScrolledOn.closest('.tabs-tab')?.classList.toggle('stories-dragging', dragging);
+    } : undefined
   });
 
   // * declared before `r`: creating it maps `peers()` through `Item` right away, so a list
@@ -344,6 +388,21 @@ function _StoriesList(props: {
             [styles['space-evenly']]: !!spaceEvenly()
           }}
         >
+          <Show when={hasMyStoryItem()}>
+            <div
+              class={styles.ListItem + ' ' + styles.MyStoryItem}
+              role="button"
+              data-my-story=""
+              style={{opacity: 1 - progress() * 1.25, 'pointer-events': progress() > .5 ? 'none' : undefined, ...myStoryMovement()}}
+              aria-label={I18n.format('MyStory', true)}
+              onClick={() => import('@components/sidebarLeft').then((module) => module.default.openMyStories())}
+            >
+              <div class={styles.MyStoryAvatar}>
+                {AvatarNew({peerId: rootScope.myId, size: ITEM_AVATAR_SIZE, isDialog: false}).element}
+              </div>
+              <div class={styles.ListItemName}>{i18n('MyStory')}</div>
+            </div>
+          </Show>
           <For each={peers()}>{Item}</For>
         </div>
       </Scrollable>
