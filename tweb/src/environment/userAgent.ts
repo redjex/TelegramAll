@@ -4,7 +4,7 @@ export const USER_AGENT = navigator ? navigator.userAgent : null;
 export const IS_APPLE = navigator.userAgent.search(/OS X|iPhone|iPad|iOS/i) !== -1;
 // The phone frame of public/android-preview.html names its iframe like this, which turns the Android
 // version on inside the frame only: the same page opened any other way stays the usual web client.
-const IN_ANDROID_PREVIEW_FRAME = (() => {
+export const IN_ANDROID_PREVIEW_FRAME = (() => {
   try {
     return window.name === 'tgall-android-preview';
   } catch(err) {

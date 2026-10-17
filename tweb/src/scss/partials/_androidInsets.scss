@@ -1,0 +1,53 @@
+// The Android app draws edge to edge, under the status bar and the navigation bar. The native side (or
+// the phone frame of the web preview) hands their sizes over as --sat / --sab / --sal / --sar, and what
+// has to stay clear of the bars is padded here. Everything else — backgrounds, scrolling lists, wallpapers —
+// runs right under them.
+
+html.is-android {
+  --sat: 0px;
+  --sab: 0px;
+  --sal: 0px;
+  --sar: 0px;
+
+  // every header: the bar's height is added on top, its content stays where it was
+  .sidebar-header {
+    padding-top: var(--sat);
+    min-height: calc(3.5rem + var(--sat));
+    padding-inline: calc(.5rem + var(--sal)) calc(.5rem + var(--sar));
+  }
+
+  // the chat: the top bar grows, the input makes room at the bottom, the messages scroll under both
+  .chat {
+    --chat-topbar-height: calc(3rem + var(--sat));
+    --chat-input-height-surplus: var(--sab);
+  }
+
+  // the top bar is a floating card: it sits below the status bar instead of growing up under it
+  .chat .topbar.sidebar-header {
+    top: var(--sat);
+    padding-top: 0;
+    min-height: 3rem !important;
+    height: 3rem !important;
+  }
+
+  .chat-input {
+    padding-bottom: var(--sab);
+  }
+
+  // lists end above the gesture bar, but draw under it
+  .sidebar-content .scrollable-y,
+  .chatlist-container .scrollable-y {
+    padding-bottom: var(--sab);
+  }
+
+  // the round "new chat" button stays above the gesture bar
+  .btn-corner {
+    --offset: calc(1.25rem + var(--sab));
+  }
+
+  // the login pages
+  #auth-pages {
+    padding: var(--sat) var(--sar) var(--sab) var(--sal);
+    box-sizing: border-box;
+  }
+}

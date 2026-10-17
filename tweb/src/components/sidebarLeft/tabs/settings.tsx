@@ -21,6 +21,7 @@ import I18n, {i18n, LangPackKey} from '@lib/langPack';
 import {IS_ANDROID} from '@environment/userAgent';
 import appImManager from '@lib/appImManager';
 import {AppPowerSavingTab} from '@components/solidJsTabs/tabs';
+import applyLiquidGlass from '@helpers/liquidGlass';
 import AndroidSettings, {AndroidSettingsCard} from '@components/sidebarLeft/tabs/androidSettings';
 import {SliderSuperTabConstructable, SliderSuperTabEventable} from '@components/sliderTab';
 import {AccountAuthorizations, Authorization, ConnectedBot} from '@layer';
@@ -127,6 +128,8 @@ const Settings = () => {
   const [searchQuery, setSearchQuery] = createSignal<string>(undefined);
   const isSearching = () => searchQuery() !== undefined;
 
+  const androidActions = document.createElement('div');
+  let stopGlass: Array<() => void> = [];
   const mainLayer = document.createElement('div');
   mainLayer.classList.add('transition-item', 'settings-layer');
 
@@ -219,7 +222,22 @@ const Settings = () => {
 
   onMount(() => {
     tab.container.classList.add('settings-container', 'transition', 'zoom-fade');
-    tab.header.append(searchBtn, btnMenu);
+    if(IS_ANDROID) {
+      // search and the menu share one glass bubble; the title appears once the page is scrolled
+      androidActions.classList.add('android-header-actions');
+      androidActions.append(searchBtn, btnMenu);
+      tab.header.append(androidActions);
+      const backBubble = tab.header.querySelector<HTMLElement>('.sidebar-close-button');
+      stopGlass = [backBubble, androidActions].filter(Boolean).map((bubble) => applyLiquidGlass(bubble, {after: 'var(--as-glass-after)'}));
+      tab.content.addEventListener('scroll', (e) => {
+        const target = e.target as HTMLElement;
+        if(target.classList?.contains('scrollable')) {
+          tab.container.classList.toggle('as-scrolled', target.scrollTop > 130);
+        }
+      }, {capture: true, passive: true});
+    } else {
+      tab.header.append(searchBtn, btnMenu);
+    }
 
     // The tab's own header and content become the first layer, so the search can
     // fade in over both of them.
@@ -241,9 +259,10 @@ const Settings = () => {
   onCleanup(() => {
     appNavigationController.removeByType(NAVIGATION_TYPE);
     inputSearch.remove();
+    stopGlass.forEach((stop) => stop());
     // the header outlives the component (it belongs to the tab), so take the
     // buttons back out — otherwise a hot reload leaves a second set behind
-    for(const button of [searchBtn, btnMenu]) button.remove();
+    for(const button of [searchBtn, btnMenu, androidActions]) button.remove();
     tab.container.append(tab.header, tab.content);
     mainLayer.remove();
     searchLayer.remove();

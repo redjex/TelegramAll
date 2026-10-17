@@ -54,6 +54,12 @@ $corner-button-size: 2.5rem;
   inset-inline-start: $corner-button-inset;
 }
 
+// the Android app draws under the status bar
+:global(.is-android) .closeButton,
+:global(.is-android) .themeButton {
+  top: calc(#{$corner-button-inset} + var(--sat));
+}
+
 .themeButton {
   inset-inline-end: $corner-button-inset;
 }
@@ -457,7 +463,7 @@ $corner-button-size: 2.5rem;
 .welcomeStart {
   position: fixed;
   inset-inline: 46px;
-  bottom: calc(87px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(87px + var(--sab));
   height: 48px;
   border: 0;
   border-radius: 24px;
@@ -559,7 +565,7 @@ $corner-button-size: 2.5rem;
   .host :global(.btn-primary):not(:global(.btn-secondary)) {
     position: fixed;
     inset-inline-end: 20px;
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(20px + var(--sab));
     width: 56px;
     height: 56px;
     padding: 0;
@@ -608,10 +614,10 @@ $corner-button-size: 2.5rem;
 // (a little above the middle, like the official one) and the round button sits on the pad's top edge.
 // This is the card's own padding, so nothing else moves when the card comes or goes.
 :global(.is-android) .phoneCard {
-  padding-bottom: calc(230px + 43px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(230px + 43px + var(--sab));
 
   :global(.btn-primary):not(:global(.btn-secondary)) {
-    bottom: calc(230px + 11px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(230px + 11px + var(--sab));
     // the button keeps its colour while it has nothing to send or is sending
     opacity: 1 !important;
   }

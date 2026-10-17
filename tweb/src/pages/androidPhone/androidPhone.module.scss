@@ -192,8 +192,8 @@
   grid-template-rows: repeat(4, 47px);
   gap: 6px;
   box-sizing: border-box;
-  height: calc(230px + env(safe-area-inset-bottom, 0px));
-  padding: 10px 10px calc(14px + env(safe-area-inset-bottom, 0px));
+  height: calc(230px + var(--sab));
+  padding: 10px 10px calc(14px + var(--sab));
   background: var(--ap-bg);
   user-select: none;
   touch-action: manipulation;
@@ -291,7 +291,7 @@
   align-items: center;
   box-sizing: content-box;
   height: 56px;
-  padding-top: max(24px, env(safe-area-inset-top, 0px));
+  padding-top: max(24px, var(--sat));
   border-bottom: 1px solid var(--ap-divider);
 }
 
