@@ -59,6 +59,7 @@
 
   &.has-avatar {
     --message-avatar-margin: 2.875rem;
+    min-block-size: 2.5rem;
   }
 
   &-avatar {
@@ -68,6 +69,7 @@
     cursor: pointer;
     pointer-events: all;
     overflow: hidden;
+    flex-shrink: 0;
 
     @include animation-level(2) {
       transition: bottom var(--transition-standard-out);

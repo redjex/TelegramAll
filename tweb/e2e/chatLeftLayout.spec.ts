@@ -24,11 +24,12 @@ function group(content: string, name: string) {
 
 async function openFixture(page: Page, direction: 'ltr' | 'rtl', width: number, right = false) {
   await page.setViewportSize({width, height: 850});
-  await page.setContent(`<!doctype html><html dir="${direction}" class="no-touch ${direction === 'rtl' ? 'is-rtl' : ''}">
+  await page.setContent(`<!doctype html><html dir="${direction}" style="--chat-width:696px" class="no-touch ${direction === 'rtl' ? 'is-rtl' : ''}">
     <head><style>${css}</style></head>
     <body class="night animation-level-0 ${right ? 'is-right-column-shown' : ''}" style="
       --page-chats-padding:16px;--left-column-width:360px;--left-column-visual-width:360px;--folders-sidebar-offset:80px;
       --right-column-width:360px;--chat-width:696px;--primary-color:#5288c1;--primary-text-color:#fff;--secondary-text-color:#8798a5;
+      --safe-area-inset-inline-end:0px;
       --surface-color:#17212b;--message-background-color:#1e2c38;--message-out-background-color:#2b5278;
       --message-time-color:#91a3b5;--message-status-color:#91a3b5;--message-out-time-color:#91a3b5;--message-out-status-color:#91a3b5;
       background:#0e1621;color:#fff;margin:0">
@@ -45,6 +46,7 @@ async function openFixture(page: Page, direction: 'ltr' | 'rtl', width: number, 
             <div class="bubbles-date-group">
               ${group(bubble('Входящее сообщение') + bubble('Ещё одно сообщение'), 'M')}
               ${group(bubble('Мой ответ', true) + bubble('Продолжение ответа', true), 'Я')}
+              ${group(bubble('.', true), 'Я')}
               ${group(bubble('Длинное сообщение '.repeat(40)), 'M')}
               ${group(bubble('<div class="attachment" style="width:400px;max-width:100%;height:90px;background:#34495e">Фото</div>', true, 'photo'), 'Я')}
             </div>
@@ -54,6 +56,7 @@ async function openFixture(page: Page, direction: 'ltr' | 'rtl', width: number, 
           <div class="rows-wrapper-wrapper"><div class="chat-rows-wrapper"><div class="message-input-field" contenteditable="true" style="padding:12px">Сообщение…</div></div></div>
         </div></div></div>
       </div></div></div>
+      <div id="column-right" class="main-column" style="background:#17212b"><div style="padding:24px">Информация</div></div>
     </div></div></body></html>`);
 }
 
@@ -67,8 +70,10 @@ async function geometry(page: Page) {
       const box = node.getBoundingClientRect();
       return {left: box.left, right: box.right, width: box.width};
     });
-    return {center: rect('#column-center'), header: rect('.topbar'), input: rect('.chat-input-main'),
-      sidebar: rect('#column-left'), avatar: rect('.bubbles-group-avatar'), messages: rects,
+    return {center: rect('#column-center'), header: rect('.topbar'), input: rect('.chat-input-main'), inputSurface: rect('.chat-input-wrapper'),
+      sidebar: rect('#column-left'), rightPanel: rect('#column-right'), avatar: rect('.bubbles-group-avatar'), messages: rects,
+      headerRadius: parseFloat(getComputedStyle(document.querySelector('.topbar')).borderTopLeftRadius),
+      inputRadius: parseFloat(getComputedStyle(document.querySelector('.chat-input-wrapper')).borderTopLeftRadius),
       overflow: document.documentElement.scrollWidth > innerWidth};
   });
 }
@@ -79,12 +84,20 @@ for(const direction of ['ltr', 'rtl'] as const) {
       await openFixture(page, direction, 1920, right);
       const boxes = await geometry(page);
       const edge = direction === 'ltr' ? 'left' : 'right';
-      expect(boxes.center[edge]).toBeCloseTo(boxes.sidebar[direction === 'ltr' ? 'right' : 'left'], 0);
+      expect(boxes.center[edge]).toBeCloseTo(boxes.sidebar[direction === 'ltr' ? 'right' : 'left'] + (direction === 'ltr' ? 16 : -16), 0);
       expect(boxes.header.left).toBeCloseTo(boxes.center.left, 0);
       expect(boxes.header.right).toBeCloseTo(boxes.center.right, 0);
+      expect(boxes.header.top).toBeCloseTo(boxes.sidebar.top, 0);
+      expect(boxes.headerRadius).toBeGreaterThan(0);
       expect(boxes.input.left).toBeCloseTo(boxes.center.left, 0);
       expect(boxes.input.right).toBeCloseTo(boxes.center.right, 0);
-      expect(boxes.input.bottom).toBeCloseTo(850, 0);
+      expect(boxes.inputSurface.left).toBeCloseTo(boxes.center.left, 0);
+      expect(boxes.inputSurface.right).toBeCloseTo(boxes.center.right, 0);
+      expect(boxes.input.bottom).toBeCloseTo(boxes.sidebar.bottom, 0);
+      expect(boxes.inputRadius).toBeGreaterThan(0);
+      if(right) {
+        expect(Math.abs(boxes.header[direction === 'ltr' ? 'right' : 'left'] - boxes.rightPanel[edge])).toBeCloseTo(16, 0);
+      }
       for(const message of boxes.messages) {
         expect(message[edge]).toBeCloseTo(boxes.messages[0][edge], 0);
         expect(message.left).toBeGreaterThanOrEqual(boxes.center.left);
@@ -107,6 +120,40 @@ test('narrow desktop and mobile keep message avatars clear of text', async({page
       expect(message.right).toBeLessThanOrEqual(boxes.center.right);
     }
     expect(boxes.overflow).toBe(false);
+  }
+});
+
+test('opening and closing the information panel resizes both chat plates', async({page}) => {
+  for(const direction of ['ltr', 'rtl'] as const) {
+    for(const width of [1200, 900]) {
+      await openFixture(page, direction, width);
+      const closed = await geometry(page);
+      await page.evaluate(() => document.body.classList.add('is-right-column-shown'));
+      const opened = await geometry(page);
+      const end = direction === 'ltr' ? 'right' : 'left';
+      const start = direction === 'ltr' ? 'left' : 'right';
+      expect(opened.header.width).toBeCloseTo(closed.header.width - 376, 0);
+      expect(opened.input.width).toBeCloseTo(opened.header.width, 0);
+      expect(opened.inputSurface.width).toBeCloseTo(opened.header.width, 0);
+      expect(Math.abs(opened.header[end] - opened.rightPanel[start])).toBeCloseTo(16, 0);
+      await page.evaluate(() => document.body.classList.remove('is-right-column-shown'));
+      expect((await geometry(page)).header.width).toBeCloseTo(closed.header.width, 0);
+    }
+  }
+});
+
+test('a single short message keeps a circular avatar without colliding with its neighbours', async({page}) => {
+  await openFixture(page, 'ltr', 1280);
+  const avatars = await page.locator('.bubbles-group-avatar').evaluateAll((nodes) => nodes.map((node) => {
+    const box = node.getBoundingClientRect();
+    const group = node.closest('.bubbles-group').getBoundingClientRect();
+    return {width: box.width, height: box.height, top: box.top, bottom: box.bottom, groupHeight: group.height};
+  }));
+  for(const [index, avatar] of avatars.entries()) {
+    expect(avatar.width).toBeCloseTo(40, 0);
+    expect(avatar.height).toBeCloseTo(avatar.width, 0);
+    expect(avatar.groupHeight).toBeGreaterThanOrEqual(avatar.height);
+    if(index) expect(avatar.top).toBeGreaterThanOrEqual(avatars[index - 1].bottom);
   }
 });
 

@@ -552,17 +552,13 @@
 
 	// The desktop chat fills the space after the docked chat list. Its header,
 	// composer and timeline share these edges instead of a centred narrow plate.
+	@include respond-to(no-floating-left-sidebar) {
+		inset-inline-start: calc(var(--page-chats-padding) * 2 + var(--folders-sidebar-offset) + var(--left-column-width));
+	}
+
 	@include respond-to(not-handhelds) {
-		inset: 0;
-	}
-
-	@include respond-to(no-floating-left-sidebar) {
-		inset-inline-start: calc(var(--page-chats-padding) + var(--folders-sidebar-offset) + var(--left-column-width));
-	}
-
-	@include respond-to(no-floating-left-sidebar) {
 		body.is-right-column-shown:not(.right-column-floats) & {
-			inset-inline-end: calc(var(--right-column-width) + var(--page-chats-padding));
+			inset-inline-end: calc(var(--right-column-width) + var(--page-chats-padding) * 2);
 		}
 	}
 
@@ -607,9 +603,8 @@
   @include respond-to(not-handhelds) {
     #column-center & {
       --chat-width: 100%;
-      --page-chats-padding: 0px;
+      --chat-input-max-width: 100%;
       --chat-bubbles-padding: 1rem;
-      --chat-input-border-radius: 0px;
     }
   }
 	display: flex !important;
@@ -640,10 +635,6 @@
     --padding: 20px;
     --pinned-floating-height: 0px;
     top: calc(56px + var(--pinned-floating-height) + var(--padding));
-
-    body.is-right-column-shown:not(.right-column-floats) & {
-      inset-inline-end: calc(var(--right-column-width));
-    }
 
     @include respond-to(handhelds) {
       --padding: 10px;
@@ -695,13 +686,6 @@
 	z-index: 3;
   box-shadow: $chat-input-box-shadow;
 }
-
-@include respond-to(not-handhelds) {
-  #column-center .chat-input-main {
-    background: var(--chat-input-background);
-  }
-}
-
 
 .chat-input-control {
   position: absolute;
