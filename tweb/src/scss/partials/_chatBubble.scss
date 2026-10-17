@@ -57,6 +57,10 @@
 .bubbles-group {
   position: relative;
 
+  &.has-avatar {
+    --message-avatar-margin: 2.875rem;
+  }
+
   &-avatar {
     position: sticky !important;
     top: 0;
@@ -127,12 +131,6 @@
   flex-wrap: wrap;
   box-sizing: border-box;
   //flex-direction: column; // fix 'Unread messages', still need to refactor it
-
-  // * guest-chat messages force the guest bot's avatar even in a 1-on-1 chat (which otherwise
-  // * has no avatar column), so reserve room for it; group chats already indent via .is-chat
-  &.is-guest-chat .bubble-content-wrapper {
-    margin-inline-start: 2.875rem;
-  }
 
   .is-guest-chat-for {
     font-weight: var(--font-weight-normal);
@@ -478,14 +476,6 @@
     &.hover-reaction-visible {
       .bubble-beside-button {
         transform: translateX(calc(1.125rem * var(--reflect)));
-
-        .bubble.is-out & {
-          transform: translateX(calc(-1.125rem * var(--reflect)));
-
-          &.goto-original {
-            transform: translateX(calc(-1.125rem * var(--reflect))) rotate(180deg);
-          }
-        }
       }
     }
 
@@ -3322,7 +3312,8 @@
 .bubble-content-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: string.unquote('min(var(--max-content-width, 100%), var(--max-width))');
+  max-width: string.unquote('min(var(--max-content-width, 100%), var(--max-width), calc(100% - var(--message-avatar-margin, 0px)))');
+  margin-inline-start: var(--message-avatar-margin, 0px);
 }
 
 .bubble.service {
@@ -3539,7 +3530,7 @@
 }
 
 .bubble.is-out {
-  flex-direction: row-reverse;
+  flex-direction: row;
   --message-background-color: var(--message-out-background-color);
   --light-message-background-color: var(--light-message-out-background-color);
   --light-filled-message-background-color: var(--light-filled-message-out-background-color);
@@ -3556,13 +3547,13 @@
   --peer-color-rgb: var(--message-primary-color-rgb);
   --peer-border-background: var(--message-out-peer-border-background);
   --message-reaction-tag-dot-color: var(--message-out-reaction-tag-dot-color);
-  --border-start-start-radius: #{$bubble-border-radius-big};
-  --border-start-end-radius: #{$bubble-border-radius-medium};
-  --border-end-end-radius: #{$bubble-border-radius-medium};
-  --border-end-start-radius: #{$bubble-border-radius-big};
+  --border-start-start-radius: #{$bubble-border-radius-medium};
+  --border-start-end-radius: #{$bubble-border-radius-big};
+  --border-end-end-radius: #{$bubble-border-radius-big};
+  --border-end-start-radius: #{$bubble-border-radius-medium};
 
   .bubble-content {
-    margin-inline-start: auto;
+    margin-inline-start: 0;
 
     &,
     .poll-footer-button {
@@ -3578,7 +3569,7 @@
 
     /* html:not(.is-firefox) */ &-wrapper {
       &.can-zoom-fade {
-        transform-origin: var(--transform-origin-right-center);
+        transform-origin: var(--transform-origin-left-center);
       }
     }
   }
@@ -3591,21 +3582,21 @@
   } */
 
   &.is-group-first, &.is-forced-rounded {
-    --border-start-end-radius: #{$bubble-border-radius-big};
+    --border-start-start-radius: #{$bubble-border-radius-big};
   }
 
   &.is-group-last, &.is-forced-rounded {
     &.can-have-tail {
-      --border-end-end-radius: 0 !important;
+      --border-end-start-radius: 0 !important;
 
       .bubble-tail {
-        inset-inline-end: -8.4px;
-        transform: translateY(1px) scaleX(calc(var(--reflect) * -1));
+        inset-inline-start: -8.4px;
+        transform: translateY(1px) scaleX(var(--reflect));
       }
 
       &.has-plain-media-tail {
         .attachment {
-          border-end-end-radius: $bubble-border-radius-big;
+          border-end-start-radius: $bubble-border-radius-big;
         }
       }
 
@@ -3616,13 +3607,13 @@
     }
 
     &:not(.can-have-tail) {
-      --border-end-end-radius: #{$bubble-border-radius-big};
+      --border-end-start-radius: #{$bubble-border-radius-big};
     }
   }
 
   &.just-media {
     .floating-part {
-      inset-inline-end: calc(100% + 10px);
+      inset-inline-start: calc(100% + 10px);
     }
   }
 
@@ -3728,15 +3719,7 @@
 
   .bubble-beside-button,
   .summarize-container {
-    inset-inline: var(--message-beside-button-margin) auto;
-  }
-
-  .bubble-beside-button {
-    //transform: scaleX(-1);
-
-    &.goto-original {
-      transform: rotate(180deg);
-    }
+    inset-inline: auto var(--message-beside-button-margin);
   }
 
   &.is-multiple-documents {
@@ -3760,7 +3743,7 @@
   }
 
   .bubble-hover-reaction {
-    inset-inline: var(--offset) auto;
+    inset-inline: auto var(--offset);
   }
 
   .code {
