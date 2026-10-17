@@ -764,6 +764,35 @@ PeerProfile.Username = () => {
   );
 };
 
+PeerProfile.UserId = () => {
+  const context = useContext(PeerProfileContext);
+  const {toastNew} = useHotReloadGuard();
+  const userId = () => String(context.peerId.toUserId());
+  const copyUserId = () => {
+    copyTextToClipboard(userId());
+    toastNew({langPackKey: 'TextCopied'});
+  };
+
+  return (
+    <Show when={context.peerId.isUser() && context.canBeDetailed()}>
+      <Row
+        clickable={copyUserId}
+        contextMenu={{
+          buttons: [{
+            icon: 'copy',
+            text: 'Copy',
+            onClick: copyUserId
+          }]
+        }}
+      >
+        <Row.Icon icon="info" />
+        <Row.Title><span dir="ltr">{userId()}</span></Row.Title>
+        <Row.Subtitle>ID</Row.Subtitle>
+      </Row>
+    </Show>
+  );
+};
+
 PeerProfile.Wallet = () => {
   const context = useContext(PeerProfileContext);
   const {i18n, rootScope, toastNew} = useHotReloadGuard();
@@ -1725,6 +1754,7 @@ PeerProfile.MainSection = () => {
       <Show when={!(context.isBotforum && context.threadId)}>
         <PeerProfile.Phone />
         <PeerProfile.Username />
+        <PeerProfile.UserId />
         <PeerProfile.Wallet />
         <PeerProfile.Location />
         <PeerProfile.Bio />
