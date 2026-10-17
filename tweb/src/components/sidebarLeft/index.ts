@@ -696,6 +696,8 @@ export class AppSidebarLeft extends SidebarSlider {
         this.openArchiveTab();
       },
       verify: async() => {
+        // on Android the archive is the row at the top of the list of chats
+        if(IS_ANDROID) return false;
         const folder = await this.managers.dialogsStorage.getFolderDialogs(FOLDER_ID_ARCHIVE, false);
         const hasArchiveStories = await this.managers.appStoriesManager.hasArchive();
         return !!folder.length || hasArchiveStories || !(await this.managers.dialogsStorage.isDialogsLoaded(FOLDER_ID_ARCHIVE));
@@ -753,7 +755,8 @@ export class AppSidebarLeft extends SidebarSlider {
           this.createTab(AppMyStoriesTab).open(AppMyStoriesTab.getInitArgs());
         });
       },
-      verify: () => !TEST_NO_STORIES
+      // (on Android it opens from the "My Story" item of the stories)
+      verify: () => !TEST_NO_STORIES && !IS_ANDROID
     }, {
       icon: 'wallet',
       text: 'Money.Title',
@@ -763,7 +766,9 @@ export class AppSidebarLeft extends SidebarSlider {
     }, {
       icon: 'user',
       text: 'Contacts',
-      onClick: onContactsClick
+      onClick: onContactsClick,
+      // the tab bar of the Android app has it
+      verify: () => !IS_ANDROID
     }, {
       icon: 'phone',
       text: 'Calls',
@@ -782,13 +787,16 @@ export class AppSidebarLeft extends SidebarSlider {
         closeTabsBefore(() => {
           this.createTab(AppSettingsTab).open();
         });
-      }
+      },
+      // the tab bar of the Android app has it
+      verify: () => !IS_ANDROID
     }, moreSubmenu];
 
     const filteredButtons = menuButtons.filter(Boolean);
     const filteredButtonsSliced = filteredButtons.slice();
     const buttonMenuToggle = ButtonMenuToggle({
-      direction: 'bottom-right',
+      // on Android the button is at the right edge and the menu opens leftwards, where there is room
+      direction: IS_ANDROID ? 'bottom-left' : 'bottom-right',
       buttons: filteredButtons,
       container: mountTo,
       buttonOptions: {ariaLabel: 'MultiAccount.More'},
@@ -846,6 +854,8 @@ export class AppSidebarLeft extends SidebarSlider {
         for(let i = 1; i <= totalAccounts; i++) {
           const accountNumber = i as ActiveAccountNumber;
           if(accountNumber === getCurrentAccount()) {
+            // on Android the row of the account is the Profile tab of the bar: with one account it is not needed
+            if(IS_ANDROID && totalAccounts === 1) continue;
             const user = await this.managers.appUsersManager.getSelf();
             accountButtons.push({
               avatarInfo: {
@@ -855,6 +865,7 @@ export class AppSidebarLeft extends SidebarSlider {
               },
               regularText: wrapUserName(user),
               onClick: () => {
+                if(IS_ANDROID) return;
                 closeTabsBefore(() => {
                   this.createTab(AppSettingsTab).open();
                 });
