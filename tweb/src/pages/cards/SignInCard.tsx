@@ -21,10 +21,13 @@ import commonStateStorage from '@lib/commonStateStorage';
 import {TrueDcId} from '@types';
 
 import AuthCard from '@/pages/AuthCard';
+import {IS_ANDROID} from '@environment/userAgent';
 import {CardSpec, useAuthFlow} from '@/pages/authFlow';
 import {continueLogin} from '@/pages/continueLogin';
 import styles from '@/pages/authFlow.module.scss';
 import {preloadTrackingMonkey} from '@components/monkeys/tracking';
+import PhoneForm from '@/pages/androidPhone/PhoneForm';
+import {createPhoneModel} from '@/pages/androidPhone/phoneModel';
 
 if(import.meta.hot) import.meta.hot.accept();
 
@@ -95,6 +98,9 @@ export default function SignInCard(_props: {spec: Spec}) {
     }
   });
 
+  // Android: the number is typed in two fields on a number pad; `telInputField` keeps doing the logic
+  const phoneModel = IS_ANDROID ? createPhoneModel(telInputField) : undefined;
+
   const telEl = telInputField.input;
   telEl.setAttribute('role', 'textbox');
   telEl.setAttribute('aria-multiline', 'false');
@@ -140,6 +146,7 @@ export default function SignInCard(_props: {spec: Spec}) {
       switch(err.type) {
         case 'PHONE_NUMBER_INVALID':
           telInputField.setError();
+          phoneModel?.setError(true);
           replaceContent(telInputField.label, i18n('Login.PhoneLabelInvalid'));
           telEl.classList.add('error');
           setNextContent(i18n('Login.Next'));
@@ -204,7 +211,8 @@ export default function SignInCard(_props: {spec: Spec}) {
       return nearestDcResult;
     }).then((nearestDcResult) => {
       if(cancelled) return;
-      if(!countryInputField.value.length && !telInputField.value.length) {
+      // the official app starts with an empty country (it reads the SIM, which a web view cannot)
+      if(!IS_ANDROID && !countryInputField.value.length && !telInputField.value.length) {
         countryInputField.selectCountryByIso2(nearestDcResult.country);
       }
     });
@@ -243,15 +251,21 @@ export default function SignInCard(_props: {spec: Spec}) {
               </svg>
             }
           />
-          <MediaHeader.Title tag="h1">{i18n('Login.Title')}</MediaHeader.Title>
+          <MediaHeader.Title tag="h1">{i18n(IS_ANDROID ? 'Login.AndroidTitle' : 'Login.Title')}</MediaHeader.Title>
           <MediaHeader.Subtitle class="secondary">{i18n('Login.StartText')}</MediaHeader.Subtitle>
         </MediaHeader>
       }
       inputWrapper={false}
     >
       <div class="input-wrapper">
-        {countryInputField.container}
-        {telInputField.container}
+        {phoneModel ? (
+          <PhoneForm model={phoneModel} onSubmit={onSubmit} canSubmit={() => hasValidInput() && !submitting()} />
+        ) : (
+          <>
+            {countryInputField.container}
+            {telInputField.container}
+          </>
+        )}
         <Button
           class="btn-primary btn-color-primary"
           disabled={!hasValidInput() || submitting()}
@@ -259,14 +273,16 @@ export default function SignInCard(_props: {spec: Spec}) {
         >
           {nextContent()}
         </Button>
-        {getCurrentAccount() === 1 && <LanguageChangeButton />}
+        {getCurrentAccount() === 1 && !IS_ANDROID && <LanguageChangeButton />}
       </div>
-      <Button
-        class="btn-primary btn-secondary btn-primary-transparent primary"
-        disabled={submitting()}
-        onClick={() => navigate({name: 'signQR'})}
-        text="Login.QR.Login"
-      />
+      {!IS_ANDROID && (
+        <Button
+          class="btn-primary btn-secondary btn-primary-transparent primary"
+          disabled={submitting()}
+          onClick={() => navigate({name: 'signQR'})}
+          text="Login.QR.Login"
+        />
+      )}
       <PasskeyLoginButton disabled={submitting()} />
     </AuthCard>
   );

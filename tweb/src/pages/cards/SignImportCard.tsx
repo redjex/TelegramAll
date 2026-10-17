@@ -5,6 +5,7 @@ import {STATE_INIT} from '@config/state';
 
 import AuthCard from '@/pages/AuthCard';
 import {CardSpec, useAuthFlow} from '@/pages/authFlow';
+import {IS_ANDROID} from '@environment/userAgent';
 import styles from '@/pages/authFlow.module.scss';
 
 if(import.meta.hot) import.meta.hot.accept();
@@ -54,7 +55,7 @@ export default function SignImportCard(props: {spec: Spec}) {
           managers.appAccountManager.cancelWebTokenAuthorization(token, dcId);
           const defaultState = STATE_INIT.authState._;
           if(defaultState === 'authStateSignIn') nextNav = () => navigate({name: 'signIn'});
-          else if(defaultState === 'authStateSignQr') nextNav = () => navigate({name: 'signQR'});
+          else if(defaultState === 'authStateSignQr') nextNav = () => navigate({name: IS_ANDROID ? 'signIn' : 'signQR'});
           break;
         }
       }

@@ -40,3 +40,13 @@ build-stamp.txt
 
 # upstream tweb git metadata, kept aside locally
 tweb/.git-upstream/
+
+# --- android (Capacitor) ---
+mobile/node_modules/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/src/main/assets/public/
+mobile/android/capacitor-cordova-android-plugins/
+mobile/compare-*.png
