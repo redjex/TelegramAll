@@ -338,6 +338,7 @@ export class ThemeController {
     // the Android app (Capacitor) draws the status bar over the page: light icons on a dark theme
     try {
       (window as any).Capacitor?.Plugins?.StatusBar?.setStyle({style: isNight ? 'DARK' : 'LIGHT'})?.catch?.(() => {});
+      (window as any).TgAllAndroid?.setBarColor(isNight ? '#181818' : '#ffffff');
     } catch{}
     document.documentElement.classList.toggle('high-contrast', this.isHighContrast());
     this.setThemeColor();
