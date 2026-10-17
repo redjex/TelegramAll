@@ -2,7 +2,17 @@ import ctx from '@environment/ctx';
 
 export const USER_AGENT = navigator ? navigator.userAgent : null;
 export const IS_APPLE = navigator.userAgent.search(/OS X|iPhone|iPad|iOS/i) !== -1;
-export const IS_ANDROID = navigator.userAgent.toLowerCase().indexOf('android') !== -1;
+// `?android=1` turns the Android version on in a desktop browser (see public/android-preview.html);
+// the choice is kept for the tab, so it survives the address changing
+const FORCE_ANDROID = (() => {
+  try {
+    if(/[?&]android=1/.test(location.search)) sessionStorage.setItem('forceAndroid', '1');
+    return sessionStorage.getItem('forceAndroid') === '1';
+  } catch(err) {
+    return false;
+  }
+})();
+export const IS_ANDROID = FORCE_ANDROID || navigator.userAgent.toLowerCase().indexOf('android') !== -1;
 export const IS_CHROMIUM = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
 export const CHROMIUM_VERSION = (() => {
   try {
