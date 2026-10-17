@@ -279,7 +279,7 @@ const ChatFolders: Component = () => {
     });
   };
 
-  const name = 'theme';
+  const name = 'folders-layout';
   const stateKey = joinDeepPath('settings', 'tabsInSidebar');
 
   // * the folder tags are Premium's: without it the switch is locked, and offers Premium instead
@@ -410,6 +410,32 @@ const ChatFolders: Component = () => {
 
   return (
     <>
+      <Section name="FiltersView">
+        <form>
+          <Row>
+            <Row.RadioField>
+              <RadioFieldTsx
+                name={name}
+                value="false"
+                valueForState={false}
+                stateKey={stateKey}
+              />
+            </Row.RadioField>
+            <Row.Title>{i18n('FiltersOnTop')}</Row.Title>
+          </Row>
+          <Row>
+            <Row.RadioField>
+              <RadioFieldTsx
+                name={name}
+                value="true"
+                valueForState={true}
+                stateKey={stateKey}
+              />
+            </Row.RadioField>
+            <Row.Title>{i18n('FiltersOnLeft')}</Row.Title>
+          </Row>
+        </form>
+      </Section>
       <div ref={stickerContainer} class="sticker-container" />
       <div class="caption">{i18n('ChatList.Filter.Header')}</div>
       <Button
@@ -447,32 +473,6 @@ const ChatFolders: Component = () => {
           </Row>
         </Section>
       </Show>
-      <Section name="FiltersView">
-        <form>
-          <Row>
-            <Row.RadioField>
-              <RadioFieldTsx
-                name={name}
-                value="true"
-                valueForState={true}
-                stateKey={stateKey}
-              />
-            </Row.RadioField>
-            <Row.Title>{i18n('FiltersOnLeft')}</Row.Title>
-          </Row>
-          <Row>
-            <Row.RadioField>
-              <RadioFieldTsx
-                name={name}
-                value="false"
-                valueForState={false}
-                stateKey={stateKey}
-              />
-            </Row.RadioField>
-            <Row.Title>{i18n('FiltersOnTop')}</Row.Title>
-          </Row>
-        </form>
-      </Section>
     </>
   );
 };
