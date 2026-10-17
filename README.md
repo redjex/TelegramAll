@@ -34,7 +34,9 @@ Only inside that frame, and for an Android user agent (Chrome's device mode, a p
 
 ## Live development in the Windows app
 
-After installing `tweb/` dependencies with pnpm and `desktop/` dependencies with npm, run from the repository root:
+After installing `tweb/` dependencies with pnpm and `desktop/` dependencies with npm, double-click **`start-windows.bat`** in the repository root. It checks the required tools and dependencies, starts the current checkout with automatic updates, and keeps errors visible if startup fails. Keep its console open while testing; close the app to stop. It also works when invoked from another directory. The launcher uses the local source files; it does not switch branches or pull from GitHub.
+
+The equivalent terminal command is:
 
 ```powershell
 npm --prefix desktop run dev
