@@ -8,6 +8,8 @@ html.is-android {
   --sab: 0px;
   --sal: 0px;
   --sar: 0px;
+  // room the floating tab bar takes at the bottom (set while it is shown)
+  --tb: 0px;
 
   // every header: the bar's height is added on top, its content stays where it was
   .sidebar-header {
@@ -37,12 +39,16 @@ html.is-android {
   // lists end above the gesture bar, but draw under it
   .sidebar-content .scrollable-y,
   .chatlist-container .scrollable-y {
-    padding-bottom: var(--sab);
+    padding-bottom: calc(var(--sab) + var(--tb));
   }
 
   // the round "new chat" button stays above the gesture bar
   .btn-corner {
-    --offset: calc(1.25rem + var(--sab));
+    --offset: calc(1.25rem + var(--sab) + var(--tb));
+  }
+
+  #column-left .item-main .sidebar-content .btn-corner {
+    bottom: calc(14px + var(--sab) + var(--tb));
   }
 
   // the login pages
@@ -50,4 +56,59 @@ html.is-android {
     padding: var(--sat) var(--sar) var(--sab) var(--sal);
     box-sizing: border-box;
   }
+}
+
+html.is-android.android-tabbar-on {
+  --tb: 72px;
+}
+
+// ----- the Android palette and glass, shared by Settings, the tab bar and the toolbars
+
+html.is-android {
+  --as-page: #f1f1f3;
+  --as-card: #fff;
+  --as-text: #1a1d21;
+  --as-gray: #808384;
+  --as-blue: #229af0;
+  --as-pressed: rgba(0, 0, 0, .06);
+  --as-glass: rgba(255, 255, 255, .28);
+  --as-glass-edge: rgba(255, 255, 255, .55);
+  --as-glass-rim: rgba(255, 255, 255, .9);
+  --as-glass-sheen: rgba(255, 255, 255, .35);
+  --as-glass-after: saturate(170%) brightness(1.06);
+  --as-rim-hi: rgba(255, 255, 255, .95);
+  --as-rim-lo: rgba(255, 255, 255, .3);
+  --as-glass-shadow: rgba(0, 0, 0, .16);
+  --tab-glass: rgba(255, 255, 255, .6);
+  --droplet-tint: 34, 154, 240;
+  --as-fade-1: 78%;
+  --as-fade-2: 70%;
+  --as-fade-3: 52%;
+  --as-fade-4: 30%;
+  --as-fade-5: 10%;
+}
+
+html.is-android.night {
+  // the same greys as the rest of the app's night theme, so Settings and its sub-screens match
+  --as-page: var(--body-background-color);
+  --as-card: var(--surface-color);
+  --as-text: var(--primary-text-color);
+  --as-gray: var(--secondary-text-color);
+  --as-blue: #229af0;
+  --as-pressed: rgba(255, 255, 255, .06);
+  --as-glass: rgba(255, 255, 255, .06);
+  --as-glass-edge: rgba(255, 255, 255, .16);
+  --as-glass-rim: rgba(255, 255, 255, .28);
+  --as-glass-sheen: rgba(255, 255, 255, .07);
+  --as-glass-after: saturate(130%);
+  --as-rim-hi: rgba(255, 255, 255, .42);
+  --as-rim-lo: rgba(255, 255, 255, .05);
+  --as-glass-shadow: rgba(0, 0, 0, .35);
+  --tab-glass: rgba(44, 44, 48, .55);
+  --droplet-tint: 120, 170, 255;
+  --as-fade-1: 97%;
+  --as-fade-2: 92%;
+  --as-fade-3: 72%;
+  --as-fade-4: 40%;
+  --as-fade-5: 12%;
 }

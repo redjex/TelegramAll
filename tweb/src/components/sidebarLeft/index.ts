@@ -1,3 +1,4 @@
+import {IS_ANDROID} from '@environment/userAgent';
 import {createEffect, createRoot, createSignal, on} from 'solid-js';
 import appImManager from '@lib/appImManager';
 import rootScope from '@lib/rootScope';
@@ -157,6 +158,10 @@ export class AppSidebarLeft extends SidebarSlider {
 
   construct(managers: AppManagers) {
     this.managers = managers;
+
+    if(IS_ANDROID) {
+      import('@components/sidebarLeft/androidTabBar').then((module) => module.default(this));
+    }
 
     this.chatListContainer = document.getElementById('chatlist-container');
     // the placeholder up front names the field; without the keyboard layer the connection status sets it, as it always did

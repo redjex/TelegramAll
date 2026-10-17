@@ -20,8 +20,27 @@ function makeTransitionFunction(options: TransitionFunction) {
   return options;
 }
 
+// The Android tab bar says which way the next screen change of the left sidebar goes: to a tab on the
+// right of the current one the new screen comes in from the right, to one on the left from the left, and
+// the two just slide past each other (no push-and-dim of an opened sub-screen).
+let tabSwitchDirection: number | undefined;
+let tabSwitchTimeout: number;
+
+export function setTabSwitchDirection(direction: number) {
+  tabSwitchDirection = direction;
+  clearTimeout(tabSwitchTimeout);
+  tabSwitchTimeout = window.setTimeout(() => {
+    tabSwitchDirection = undefined;
+  }, 1000);
+}
+
 const slideNavigation = makeTransitionFunction({
   callback: (tabContent, prevTabContent, toRight) => {
+    if(tabSwitchDirection !== undefined) {
+      tabSwitchDirection = undefined;
+      return slideTabs.callback(tabContent, prevTabContent, toRight);
+    }
+
     const width = prevTabContent.getBoundingClientRect().width;
     const elements = [tabContent, prevTabContent];
     if(toRight) elements.reverse();
@@ -323,7 +342,7 @@ const TransitionSlider = (options: TransitionSliderOptions) => {
     endEventName = fade || !animationFunction ? 'animationend' : 'transitionend';
     content.classList.add('animating'/* , 'disable-hover' */);
     content.classList.toggle('animating-fade', fade);
-    const toRight = prevId < id;
+    const toRight = tabSwitchDirection !== undefined ? tabSwitchDirection > 0 : prevId < id;
     content.classList.toggle('backwards', !toRight);
 
     let onTransitionEndCallback: ReturnType<TransitionFunction['callback']>;

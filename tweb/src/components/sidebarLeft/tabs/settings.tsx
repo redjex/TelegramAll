@@ -228,7 +228,7 @@ const Settings = () => {
       androidActions.append(searchBtn, btnMenu);
       tab.header.append(androidActions);
       const backBubble = tab.header.querySelector<HTMLElement>('.sidebar-close-button');
-      stopGlass = [backBubble, androidActions].filter(Boolean).map((bubble) => applyLiquidGlass(bubble, {after: 'var(--as-glass-after)'}));
+      stopGlass = [backBubble, androidActions].filter(Boolean).map((bubble) => applyLiquidGlass(bubble, {after: 'blur(7px) var(--as-glass-after)'}));
       tab.content.addEventListener('scroll', (e) => {
         const target = e.target as HTMLElement;
         if(target.classList?.contains('scrollable')) {
