@@ -17,7 +17,11 @@ import ButtonIcon from '@components/buttonIcon';
 import rootScope from '@lib/rootScope';
 import Row from '@components/rowTsx';
 import {AppActiveSessionsTab} from '@components/solidJsTabs/tabs';
-import {i18n, LangPackKey} from '@lib/langPack';
+import I18n, {i18n, LangPackKey} from '@lib/langPack';
+import {IS_ANDROID} from '@environment/userAgent';
+import appImManager from '@lib/appImManager';
+import {AppPowerSavingTab} from '@components/solidJsTabs/tabs';
+import AndroidSettings, {AndroidSettingsCard} from '@components/sidebarLeft/tabs/androidSettings';
 import {SliderSuperTabConstructable, SliderSuperTabEventable} from '@components/sliderTab';
 import {AccountAuthorizations, Authorization, ConnectedBot} from '@layer';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
@@ -372,6 +376,96 @@ const Settings = () => {
   // Lottie workers preload — fire and forget.
   lottieLoader.loadLottieWorkers();
 
+  // ── Android: the same actions as cards of rows, the way Telegram for Android lays Settings out.
+  //    The texts are the official client's English ones.
+  const openSubTab = (constructor: SliderSuperTabConstructable) => {
+    const config = subTabConfigs.find((item) => item.tabConstructor === constructor);
+    return onSubTabClick(config);
+  };
+
+  const openUrl = (url: string) => () => appImManager.openUrl(url);
+
+  const androidCards = (): AndroidSettingsCard[] => [{
+    rows: [{
+      icon: 'settings_account', colors: ['#1ca5ed', '#1488e1'],
+      title: 'Account', subtitle: 'Number, Username, Bio',
+      onClick: () => tab.slider.createTab(AppEditProfileTab).open(getEditProfileInitArgs(true))
+    }, {
+      icon: 'settings_chat', colors: ['#f09f1b', '#e18a11'],
+      title: 'Chat Settings', subtitle: 'Wallpaper, Night Mode, Animations',
+      onClick: openSubTab(AppGeneralSettingsTab)
+    }, {
+      icon: 'settings_privacy', colors: ['#55ca47', '#27b434'],
+      title: 'Privacy & Security', subtitle: 'Last Seen, Devices, Passkeys',
+      onClick: openSubTab(AppPrivacyAndSecurityTab)
+    }, {
+      icon: 'settings_sounds', colors: ['#f45255', '#df3955'],
+      title: 'Notifications', subtitle: 'Sounds, Calls, Badges',
+      onClick: openSubTab(AppNotificationsTab)
+    }, {
+      icon: 'settings_data', colors: ['#4f85f6', '#3568e8'],
+      title: 'Data and Storage', subtitle: 'Media download settings',
+      onClick: openSubTab(AppDataAndStorageTab)
+    }, {
+      icon: 'settings_folders', colors: ['#1ca5ed', '#1387e1'],
+      title: 'Chat Folders', subtitle: 'Sort chats into folders',
+      onClick: openSubTab(AppChatFoldersTab)
+    }, {
+      icon: 'settings_devices', colors: ['#32c0ce', '#1d9cc6'],
+      title: 'Devices', subtitle: 'Manage connected devices',
+      onClick: onDevicesClick
+    }, {
+      icon: 'settings_power', colors: ['#f28b31', '#e26314'],
+      title: 'Power Saving', subtitle: 'Reduce power usage on low charge',
+      onClick: () => tab.slider.createTab(AppPowerSavingTab).open()
+    }, {
+      icon: 'settings_language', colors: ['#c46ef4', '#9f55df'],
+      title: 'Language', subtitle: i18n('LanguageName'),
+      onClick: () => tab.slider.createTab(AppLanguageTab).open()
+    }, {
+      // the web client's own settings, which the Android client keeps elsewhere
+      icon: 'settings_features', colors: ['#8699aa', '#6e8397'],
+      title: 'Stickers and Emoji', onClick: openSubTab(AppStickersAndEmojiTab)
+    }, {
+      icon: 'settings_calls', colors: ['#8699aa', '#6e8397'],
+      title: 'Speakers and Camera', onClick: openSubTab(AppSpeakersAndCameraTab)
+    }]
+  }, ...([{
+    rows: [{
+      icon: 'settings_premium', colors: ['#b659ff', '#617cff'],
+      title: 'Telegram Premium', onClick: () => showPremiumPopup()
+    }, {
+      icon: 'settings_stars', colors: ['#efa612', '#e77512'],
+      title: 'Telegram Stars', value: stars() ? '' + stars() : undefined,
+      onClick: () => showStarsPopup()
+    }, {
+      icon: 'settings_gram_24', colors: ['#1ba4ed', '#1488e1'],
+      title: 'My Grams', value: String(starsTon()) !== '0' ? formatNanoton(starsTon()) : undefined,
+      onClick: () => showStarsPopup({ton: true})
+    }, {
+      icon: 'settings_business', colors: ['#f45255', '#df3955'],
+      title: 'Telegram Business', onClick: () => showBusinessPopup()
+    }, {
+      icon: 'settings_gift', colors: ['#f38b31', '#e26314'],
+      title: 'Send a Gift', onClick: () => showSendGiftPicker()
+    }]
+  }]), {
+    header: 'Help',
+    rows: [{
+      icon: 'settings_ask', colors: ['#f09f1b', '#e18a11'],
+      title: 'Ask a Question', onClick: openUrl('https://telegram.org/support')
+    }, {
+      icon: 'settings_faq', colors: ['#1ba4ed', '#1488e1'],
+      title: 'Telegram FAQ', onClick: openUrl('https://telegram.org/faq')
+    }, {
+      icon: 'settings_features', colors: ['#c46ef4', '#9f55df'],
+      title: 'Telegram Features', onClick: () => appImManager.openUrl(I18n.format('TelegramFeaturesUrl', true))
+    }, {
+      icon: 'settings_policy', colors: ['#55ca47', '#27b434'],
+      title: 'Privacy Policy', onClick: openUrl('https://telegram.org/privacy')
+    }]
+  }];
+
   return (
     <>
       <InlinePortal mount={searchLayer}>
@@ -387,6 +481,13 @@ const Settings = () => {
           </Scrollable>
         </div>
       </InlinePortal>
+      <Show when={IS_ANDROID}>
+        <AndroidSettings
+          cards={androidCards()}
+          onEditProfile={() => tab.slider.createTab(AppEditProfileTab).open(getEditProfileInitArgs(true))}
+        />
+      </Show>
+      <Show when={!IS_ANDROID}>
       {peerProfileElement}
       <Section>
         <div class="profile-buttons">
@@ -447,6 +548,7 @@ const Settings = () => {
             <Row.Title>{i18n('Chat.Menu.SendGift')}</Row.Title>
           </Row>
         </Section>
+      </Show>
       </Show>
     </>
   );

@@ -197,6 +197,13 @@
   background: var(--ap-bg);
   user-select: none;
   touch-action: manipulation;
+  animation: keyboard-up .3s cubic-bezier(.22, 1, .36, 1);
+}
+
+@keyframes keyboard-up {
+  from {
+    transform: translateY(100%);
+  }
 }
 
 .key {

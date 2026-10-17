@@ -244,6 +244,7 @@ export default function SignInCard(_props: {spec: Spec}) {
 
   return (
     <AuthCard
+      class={IS_ANDROID ? styles.phoneCard : undefined}
       header={
         <MediaHeader>
           <MediaHeader.Sticker

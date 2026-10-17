@@ -1,0 +1,199 @@
+// Settings of Telegram for Android: sizes and colours from SettingsActivity.java (SettingCell) and the
+// light / night themes of the official client.
+
+:global(html.is-android) {
+  --as-page: #f1f1f3;
+  --as-card: #fff;
+  --as-text: #1a1d21;
+  --as-gray: #808384;
+  --as-blue: #229af0;
+  --as-pressed: rgba(0, 0, 0, .06);
+}
+
+:global(html.is-android.night) {
+  // the same greys as the rest of the app's night theme, so Settings and its sub-screens match
+  --as-page: var(--body-background-color);
+  --as-card: var(--surface-color);
+  --as-text: var(--primary-text-color);
+  --as-gray: var(--secondary-text-color);
+  --as-blue: #229af0;
+  --as-pressed: rgba(255, 255, 255, .06);
+}
+
+// the round "new chat" button belongs to the chat list: the official Settings has none
+:global(html.is-android .sidebar-slider:has(.settings-container.active) .btn-new-menu) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+// the settings tab itself sits on the grey page, its toolbar too
+:global(html.is-android .settings-container),
+:global(html.is-android .settings-container .sidebar-header),
+:global(html.is-android .settings-container .sidebar-content) {
+  background: var(--as-page);
+}
+
+.page {
+  box-sizing: border-box;
+  min-height: 100%;
+  // the toolbar (56px) lies over the content of a settings tab
+  padding-top: 56px;
+  padding-bottom: 24px;
+  background: var(--as-page);
+  color: var(--as-text);
+  font-family: Roboto, sans-serif;
+}
+
+// ----- the profile on top
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 24px 24px;
+}
+
+.avatar {
+  position: relative;
+  width: 90px;
+  height: 90px;
+}
+
+.camera {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  padding: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--as-page);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cameraInner {
+  position: relative;
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #1c93e3;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    background: #fff;
+    mask: url('/assets/android/img/filled_premium_camera.webp') center / contain no-repeat;
+    -webkit-mask: url('/assets/android/img/filled_premium_camera.webp') center / contain no-repeat;
+  }
+}
+
+.name {
+  margin-top: 24px;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.info {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--as-gray);
+  text-align: center;
+}
+
+// ----- the cards
+
+.card {
+  margin: 0 12px 12px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--as-card);
+}
+
+.cardHeader {
+  padding: 14px 18px 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--as-blue);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 50px;
+  padding: 0 20px 0 18px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .15s;
+
+  &:active {
+    background: var(--as-pressed);
+  }
+}
+
+.twoLines {
+  height: 60px;
+}
+
+.icon {
+  flex: none;
+  position: relative;
+  width: 28px;
+  height: 28px;
+  margin-inline-end: 18px;
+  border-radius: 10px;
+}
+
+.glyph {
+  position: absolute;
+  inset: 2px;
+  background: #fff;
+  mask: var(--glyph) center / contain no-repeat;
+  -webkit-mask: var(--glyph) center / contain no-repeat;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--as-gray);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value {
+  flex: none;
+  margin-inline-start: 12px;
+  font-size: 16px;
+  color: var(--as-blue);
+}

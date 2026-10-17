@@ -5,8 +5,7 @@ set TWEB_PREVIEW=1
 set NODE_OPTIONS=--max-old-space-size=8192
 echo.
 echo   Android in a phone frame : http://localhost:8080/android-preview.html
-echo   Android in the whole tab : http://localhost:8080/android.html
-echo   Usual web version        : http://localhost:8080/
+echo   Usual web version        : http://localhost:8080/   (not changed by the Android version)
 echo.
 echo   (the first load takes a while: the dev server compiles the app on demand)
 echo.

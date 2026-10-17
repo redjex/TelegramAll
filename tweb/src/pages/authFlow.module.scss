@@ -604,20 +604,16 @@ $corner-button-size: 2.5rem;
   }
 }
 
-// The phone-number card has the number pad (230px) under it: the content is centred above it and
-// the round button sits on its top edge, as in the official app.
-.host.hasKeyboard {
-  box-sizing: border-box;
-  padding-bottom: calc(230px + env(safe-area-inset-bottom, 0px));
+// The phone-number card has the number pad (230px) under it: its content is centred above the pad
+// (a little above the middle, like the official one) and the round button sits on the pad's top edge.
+// This is the card's own padding, so nothing else moves when the card comes or goes.
+:global(.is-android) .phoneCard {
+  padding-bottom: calc(230px + 43px + env(safe-area-inset-bottom, 0px));
 
   :global(.btn-primary):not(:global(.btn-secondary)) {
     bottom: calc(230px + 11px + env(safe-area-inset-bottom, 0px));
-    opacity: 1;
-  }
-
-  // the official content sits a little above the middle of the space over the number pad
-  .cardsContainer {
-    margin-bottom: 43px;
+    // the button keeps its colour while it has nothing to send or is sending
+    opacity: 1 !important;
   }
 }
 
@@ -627,13 +623,18 @@ $corner-button-size: 2.5rem;
 // ease-out-quint; while the code is requested its arrow turns into a small progress circle)
 
 :global(.is-android) {
+  .placeholder {
+    display: none;
+  }
+
   .cardsContainer {
     display: grid;
-    overflow: hidden;
+    flex: 1;
   }
 
   .cardsContainer > * {
     grid-area: 1 / 1;
+    align-self: center;
     min-width: 0;
   }
 
@@ -677,6 +678,9 @@ $corner-button-size: 2.5rem;
       transition: opacity .38s cubic-bezier(.22, 1, .36, 1), transform .38s cubic-bezier(.22, 1, .36, 1);
     }
 
+    // while the code is requested the progress circle is in the button: the arrow gives way to it
+    // (the class on the button does not follow the signal, so this looks at what is inside)
+    &:has(.fabProgress)::after,
     &:global(.is-submitting)::after {
       opacity: 0;
       transform: scale(.1);
