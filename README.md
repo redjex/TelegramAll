@@ -29,7 +29,23 @@ To work on it without a phone or an emulator, run `start-web.bat` (it starts the
 
 ## Separate test profile
 
-`TelegramAll.exe --profile=dev` (or `npm run dev` in `desktop/`) runs the same code with its own logins, chats and caches in `%APPDATA%\TelegramAll-dev` and its own local port, so it can run next to the main profile and never touches it.
+`TelegramAll.exe --profile=dev` (or `npm run start:profile` in `desktop/`) runs the built app with its own logins, chats and caches in `%APPDATA%\TelegramAll-dev` and its own local port, so it can run next to the main profile and never touches it.
+
+## Live development in the Windows app
+
+After installing `tweb/` dependencies with pnpm and `desktop/` dependencies with npm, run from the repository root:
+
+```powershell
+npm --prefix desktop run dev
+```
+
+The launcher runs Vite's build watcher and opens Electron with the `dev` profile after the first successful build. Saving UI code or styles automatically rebuilds the bundle and reloads the page. This is automatic rebuild-and-reload, rather than in-place HMR: an open popup may close during an update. Changes to `desktop/main.js`, `desktop/server.js` or `desktop/liveReload.js` restart the window automatically. Changes to the launcher itself need a new launch.
+
+Development bundles go to the ignored `tweb/tmp/desktop-dist/`, served at the profile's usual `http://localhost:47825` address. Login, IndexedDB, localStorage and media remain in the same profile. Only the service worker is unregistered for an update so old cached code cannot mask a change. Runtime assets are served from `tweb/public/` without copying its old compiled code over the new bundle. Background throttling is disabled in this development window so startup and reload can finish without focusing it.
+
+Failed builds leave the preceding working page and chunks available. Fix the error and save to retry automatically. The first build is slower; subsequent builds reuse the project's transform cache, omit minification and source maps, and keep prior chunks for in-flight requests. After a long session, the ignored `tweb/tmp/desktop-dist/` directory may be removed once the launcher has stopped to reclaim space. No browser dev server is started or stopped, and packaged releases still use `tweb/dist` with their usual behavior. Close an existing built window using the `dev` profile before starting the launcher for the first time.
+
+Checks: `npm --prefix desktop test` covers serving and reload coordination. `npm --prefix desktop run test:electron` runs the watcher, an intentional syntax failure and recovery in a hidden, isolated Electron test window; it does not use the developer's Telegram profile or take focus. Application checks must still be run separately when changing client code.
 
 Logins, chats, contacts and caches are stored outside the repository, in `%APPDATA%\TelegramAll`, and are never committed (see `.gitignore` and the `pre-commit` hook).
 
