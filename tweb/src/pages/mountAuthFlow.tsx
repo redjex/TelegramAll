@@ -3,7 +3,8 @@ import {render} from 'solid-js/web';
 import {AuthState} from '@types';
 
 import AuthCardsHost from '@/pages/AuthCardsHost';
-import {CardSpec, navigateAuth} from '@/pages/authFlow';
+import {CardSpec, isWelcomeSeen, navigateAuth} from '@/pages/authFlow';
+import {IS_ANDROID} from '@environment/userAgent';
 
 /**
  * Bootstrap the auth flow.
@@ -70,9 +71,10 @@ export function disposeActiveAuthFlow(): void {
 function authStateToCardSpec(authState: MountAuthFlowState): CardSpec {
   switch(authState._) {
     case 'authStateSignIn':
-      return {name: 'signIn'};
+      return IS_ANDROID && !isWelcomeSeen() ? {name: 'welcome'} : {name: 'signIn'};
     case 'authStateSignQr':
-      return {name: 'signQR'};
+      // a phone cannot scan its own QR code: on Android the phone-number form is the only way in
+      return IS_ANDROID ? (isWelcomeSeen() ? {name: 'signIn'} : {name: 'welcome'}) : {name: 'signQR'};
     case 'authStateAuthCode':
       return {name: 'authCode', payload: authState.sentCode};
     case 'authStateEmailSetup':

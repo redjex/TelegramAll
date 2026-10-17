@@ -1,0 +1,402 @@
+// The phone-number screen of Telegram for Android: sizes and colours from LoginActivity,
+// OutlineTextContainerView, CustomPhoneKeyboardView and CountrySelectActivity of the official source.
+
+:global(html.is-android) {
+  --ap-primary: #229af0;
+  --ap-text: #1a1d21;
+  --ap-hint: #a8a8a8;
+  --ap-gray: #757575;
+  --ap-border: #dbdbdb;
+  --ap-bg: #fff;
+  --ap-key: rgba(0, 0, 0, .06);
+  --ap-key-pressed: rgba(0, 0, 0, .12);
+  --ap-value: #298acf;
+  --ap-divider: #e6e6e6;
+  --ap-error: #e05356;
+}
+
+:global(html.is-android.night) {
+  --ap-text: #fff;
+  --ap-hint: #7d7d7d;
+  --ap-gray: #7d7d7d;
+  --ap-border: #505050;
+  --ap-bg: #181819;
+  --ap-key: rgba(255, 255, 255, .06);
+  --ap-key-pressed: rgba(255, 255, 255, .12);
+  --ap-value: #69b6fd;
+  --ap-divider: #000;
+}
+
+// ----- the form ---------------------------------------------------------
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 29px;
+  width: 100%;
+  margin-top: 5px;
+}
+
+// An outlined field whose caption sits on the border once there is something in it
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 52px;
+  padding: 0 14px 0 13px;
+  border: 1px solid var(--ap-border);
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.boxFocused {
+  border-color: var(--ap-primary);
+  box-shadow: inset 0 0 0 .67px var(--ap-primary);
+}
+
+.boxError {
+  border-color: var(--ap-error);
+  box-shadow: inset 0 0 0 .67px var(--ap-error);
+}
+
+.boxLabel {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  padding: 0 4px;
+  font-size: 16px;
+  line-height: 16px;
+  color: var(--ap-hint);
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: top .15s, font-size .15s, color .15s;
+}
+
+.boxFilled .boxLabel {
+  top: 0;
+  left: 10px;
+  font-size: 12px;
+  background: var(--ap-bg);
+}
+
+.boxFocused .boxLabel {
+  color: var(--ap-primary);
+}
+
+.boxError .boxLabel {
+  color: var(--ap-error);
+}
+
+.countryFlag {
+  width: 24px;
+  margin-right: 12px;
+  font-size: 15px;
+  line-height: 1;
+  text-align: start;
+}
+
+.countryName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  color: var(--ap-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-inline-start: auto;
+  background-color: var(--ap-hint);
+  mask: url('/assets/android/img/msg_inputarrow.webp') center / contain no-repeat;
+  -webkit-mask: url('/assets/android/img/msg_inputarrow.webp') center / contain no-repeat;
+}
+
+.plus {
+  font-size: 16px;
+  color: var(--ap-text);
+}
+
+.codeField {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 48px;
+  height: 100%;
+  padding-inline-start: 2px;
+  font-size: 16px;
+  color: var(--ap-text);
+}
+
+.divider {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: var(--ap-border);
+}
+
+.numberField {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  padding-inline-start: 12px;
+  font-size: 16px;
+  color: var(--ap-text);
+  white-space: pre;
+}
+
+.numberHint {
+  color: var(--ap-hint);
+}
+
+.caret {
+  display: inline-block;
+  flex: none;
+  width: 1.5px;
+  height: 20px;
+  background: var(--ap-primary);
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+// ----- the number pad ---------------------------------------------------
+
+.keyboard {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 9;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 47px);
+  gap: 6px;
+  box-sizing: border-box;
+  height: calc(230px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 10px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: var(--ap-bg);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.key {
+  position: relative;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ap-key);
+  color: var(--ap-text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .1s, background-color .1s;
+
+  &:nth-child(1) {
+    border-start-start-radius: 24px;
+  }
+
+  &:nth-child(3) {
+    border-start-end-radius: 24px;
+  }
+
+  &:active {
+    background: var(--ap-key-pressed);
+    transform: scale(.98);
+  }
+}
+
+.keyBackspace {
+  border-end-end-radius: 24px;
+}
+
+.keyDigit {
+  position: absolute;
+  top: 50%;
+  left: 25%;
+  font-size: 24px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+
+.keyLetters {
+  position: absolute;
+  top: 50%;
+  left: 70%;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ap-hint);
+  transform: translate(-50%, -50%);
+}
+
+.backspaceIcon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  background-color: var(--ap-text);
+  mask: url('/assets/android/img/msg_clear_input.webp') center / contain no-repeat;
+  -webkit-mask: url('/assets/android/img/msg_clear_input.webp') center / contain no-repeat;
+  transform: translate(-50%, -50%);
+}
+
+// ----- the country list -------------------------------------------------
+
+.picker {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--ap-bg);
+  color: var(--ap-text);
+  transform: translateX(100%);
+  transition: transform .22s cubic-bezier(.3, .8, .3, 1);
+}
+
+.pickerShown {
+  transform: translateX(0);
+}
+
+.pickerBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  box-sizing: content-box;
+  height: 56px;
+  padding-top: max(24px, env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--ap-divider);
+}
+
+.pickerBack,
+.pickerSearch {
+  flex: none;
+  width: 54px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pickerTitle {
+  flex: 1;
+  margin-inline-start: 18px;
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickerInput {
+  flex: 1;
+  min-width: 0;
+  margin-inline-start: 18px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 18px;
+  color: var(--ap-text);
+
+  &::placeholder {
+    color: var(--ap-hint);
+  }
+}
+
+.backArrow,
+.searchIcon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: auto;
+  background-color: var(--ap-text);
+}
+
+.backArrow {
+  mask: url('/assets/android/img/ic_ab_back.webp') center / contain no-repeat;
+  -webkit-mask: url('/assets/android/img/ic_ab_back.webp') center / contain no-repeat;
+}
+
+.searchIcon {
+  mask: url('/assets/android/vectors/outline_header_search.svg') center / contain no-repeat;
+  -webkit-mask: url('/assets/android/vectors/outline_header_search.svg') center / contain no-repeat;
+}
+
+.pickerList {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 50px;
+  padding: 0 37px 0 35px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    background: var(--ap-key);
+  }
+}
+
+.pickerFlag {
+  flex: none;
+  width: 24px;
+  margin-inline-end: 9px;
+  font-size: 15px;
+  line-height: 1;
+  text-align: start;
+}
+
+.pickerName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickerCode {
+  flex: none;
+  margin-inline-start: 12px;
+  font-size: 16px;
+  color: var(--ap-value);
+}
+
+.pickerSeparator {
+  height: 16px;
+  padding: 0 24px;
+
+  i {
+    display: block;
+    height: 1px;
+    margin-top: 7px;
+    background: var(--ap-divider);
+  }
+}

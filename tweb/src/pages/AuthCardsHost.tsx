@@ -2,7 +2,7 @@ import {JSX, Match, Show, Switch, children, createMemo, lazy, onMount} from 'sol
 
 import Scrollable from '@components/scrollable2';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
-import {IS_MOBILE_SAFARI} from '@environment/userAgent';
+import {IS_ANDROID, IS_MOBILE_SAFARI} from '@environment/userAgent';
 import loadFonts from '@helpers/dom/loadFonts';
 import {doubleRaf} from '@helpers/schedulers';
 import pause from '@helpers/schedulers/pause';
@@ -34,6 +34,8 @@ if(import.meta.hot) import.meta.hot.accept();
 /* Lazy card slots — same chunk-splitting as the legacy dynamic imports */
 /* ------------------------------------------------------------------ */
 
+const ThemeSwitchIcon = lazy(() => import('@/pages/androidIntro/ThemeSwitchIcon'));
+const WelcomeCard = lazy(() => import('@/pages/cards/WelcomeCard'));
 const SignInCard = lazy(() => import('@/pages/cards/SignInCard'));
 const AuthCodeCard = lazy(() => import('@/pages/cards/AuthCodeCard'));
 const EmailSetupCard = lazy(() => import('@/pages/cards/EmailSetupCard'));
@@ -156,11 +158,18 @@ export default function AuthCardsHost(): JSX.Element {
 
   return (
     <AuthFlowContext.Provider value={ctx}>
-      <main ref={hostEl} style={{opacity: 0}} class={classNames('whole', styles.host)} id="auth-pages">
+      <main ref={hostEl} style={{opacity: 0}} class={classNames('whole', styles.host, IS_ANDROID && currentCard()?.name === 'signIn' && styles.hasKeyboard)} id="auth-pages">
         {showBackButton && (
           <Button.Icon icon="back" class={styles.closeButton} onClick={back} aria-label={I18n.format('StarsRating.Back', true)} />
         )}
-        <Button.Icon icon="darkmode_filled" class={styles.themeButton} onClick={toggleTheme} aria-label={I18n.format('DarkMode', true)} />
+        {/* the official Android app has the theme switch on its intro screen only */}
+        <Show when={!IS_ANDROID || currentCard()?.name === 'welcome'}>
+          <Show when={IS_ANDROID} fallback={
+            <Button.Icon icon="darkmode_filled" class={styles.themeButton} onClick={toggleTheme} aria-label={I18n.format('DarkMode', true)} />
+          }>
+            <ThemeSwitchIcon onClick={toggleTheme} />
+          </Show>
+        </Show>
         <Scrollable
           ref={scrollableEl}
           class={classNames(
@@ -198,6 +207,9 @@ export default function AuthCardsHost(): JSX.Element {
 function CardsTransition(): JSX.Element {
   const cardChild = children(() => (
     <Switch>
+      <Match when={matchCard('welcome')} keyed>
+        {(spec) => <WelcomeCard spec={spec} />}
+      </Match>
       <Match when={matchCard('signIn')} keyed>
         {(spec) => <SignInCard spec={spec} />}
       </Match>

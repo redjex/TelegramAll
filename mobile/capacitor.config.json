@@ -1,0 +1,15 @@
+{
+  "appId": "org.telegramall.app",
+  "appName": "TelegramAll",
+  "webDir": "../tweb/dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {"launchShowDuration": 0, "backgroundColor": "#17212b"},
+    "Keyboard": {"resize": "native"}
+  }
+}

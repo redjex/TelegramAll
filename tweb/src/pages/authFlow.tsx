@@ -23,6 +23,7 @@ import {AccountSentEmailCode, AuthSentCode} from '@layer';
 /* ------------------------------------------------------------------ */
 
 export type CardName =
+  | 'welcome'
   | 'signIn'
   | 'authCode'
   | 'emailSetup'
@@ -34,6 +35,7 @@ export type CardName =
   | 'signImport';
 
 export type CardPayloadMap = {
+  welcome: void;
   signIn: void;
   authCode: AuthSentCode.authSentCode & {phone_number?: string};
   emailSetup: {phone_number: string, phone_code_hash: string};
@@ -94,6 +96,20 @@ const [currentCard, setCurrentCard] = (() => {
 })();
 
 export {currentCard};
+
+/**
+ * Android only: the intro (logo, slides, "Start Messaging") comes before the phone-number form,
+ * once per launch, like the official app.
+ */
+let welcomeSeen = false;
+
+export function isWelcomeSeen(): boolean {
+  return welcomeSeen;
+}
+
+export function markWelcomeSeen(): void {
+  welcomeSeen = true;
+}
 
 /**
  * Imperative navigation entry-point. Callable from non-Solid code (passkey button,
