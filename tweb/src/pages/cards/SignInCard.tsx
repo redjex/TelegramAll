@@ -116,14 +116,18 @@ export default function SignInCard(_props: {spec: Spec}) {
     if(e) cancelEvent(e);
 
     setSubmitting(true);
-    setNextContent(
+    setNextContent(IS_ANDROID ? (
+      <svg class={styles.fabProgress} viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="none" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    ) : (
       <>
         {i18n('PleaseWait')}
         <svg xmlns="http://www.w3.org/2000/svg" class="preloader-circular" viewBox="25 25 50 50">
           <circle class="preloader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>
         </svg>
       </>
-    );
+    ));
 
     const phone_number = telInputField.value;
     // * the code card's sticker is fetched alongside the code itself, not when that card mounts: by
@@ -267,7 +271,7 @@ export default function SignInCard(_props: {spec: Spec}) {
           </>
         )}
         <Button
-          class="btn-primary btn-color-primary"
+          class={'btn-primary btn-color-primary' + (IS_ANDROID && submitting() ? ' is-submitting' : '')}
           disabled={!hasValidInput() || submitting()}
           onClick={onSubmit}
         >

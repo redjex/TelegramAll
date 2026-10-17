@@ -248,7 +248,7 @@ function CardsTransition(): JSX.Element {
   return (
     <Show when={stableCard()}>
       <Transition
-        mode="outin"
+        mode={IS_ANDROID ? undefined : 'outin'}
         enterActiveClass={styles.cardEnterActive}
         exitActiveClass={styles.cardExitActive}
         enterClass={styles.cardEnter}

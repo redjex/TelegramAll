@@ -112,7 +112,8 @@ export function createPhoneModel(tel: TelInputField) {
 
       const next = head + digit;
       setDigits(next + all.slice(head.length));
-      if(codeIsComplete(next)) {
+      // the digit may already belong to the number (the code before it is complete), or end the code
+      if(code().length < next.length || codeIsComplete(next)) {
         setActive('number');
       }
     } else {

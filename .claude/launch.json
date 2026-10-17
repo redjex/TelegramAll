@@ -4,7 +4,7 @@
     {
       "name": "tweb-dev",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "cd /d tweb && set TWEB_PREVIEW=1&& npx vite --host 0.0.0.0 --port 8080"],
+      "runtimeArgs": ["/c", "cd /d tweb && set TWEB_PREVIEW=1&& set NODE_OPTIONS=--max-old-space-size=8192&& npx vite --host 0.0.0.0 --port 8080"],
       "port": 8080
     }
   ]
