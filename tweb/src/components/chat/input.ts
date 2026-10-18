@@ -47,7 +47,7 @@ import showPinMessagePopup from '@components/popups/unpinMessage';
 import tsNow from '@helpers/tsNow';
 import appNavigationController, {NavigationItem} from '@components/appNavigationController';
 import {IS_ANDROID, IS_MOBILE, IS_MOBILE_SAFARI} from '@environment/userAgent';
-import createGooeyGlass from '@helpers/gooeyGlass';
+import createGooeyGlass, {GooeyState} from '@helpers/gooeyGlass';
 import I18n, {FormatterArguments, i18n, join, LangPackKey} from '@lib/langPack';
 import {
   AttachedMediaType,
@@ -262,6 +262,14 @@ type ChatInputAttachMenuButton = ButtonMenuItemOptionsVerifiable & {
 };
 
 export type ChatInputReplyTo = Pick<MessageSendingParams, 'replyToMsgId' | 'replyToQuote' | 'replyToPollOption' | 'replyToStoryId' | 'replyToPeerId' | 'replyToMonoforumPeerId'>;
+
+/** how thin (and, for the wide field, narrow) a drop gets while it is pulled `state.dragX/dragY` px: the volume stays */
+function stretchScales(state: GooeyState, height: number) {
+  const length = Math.hypot(state.dragX, state.dragY);
+  const scale = 1 / Math.sqrt(1 + length / height * .8);
+  // the wide field draws in at the sides as well, so it does not run over the clip and the mic
+  return {scale, scaleX: state.stretch === 2 ? Math.pow(scale, 1.25) : scale};
+}
 
 const CLASS_NAME = 'chat-input';
 // Android shows the sticker icon where the other platforms have the smile
@@ -1624,7 +1632,7 @@ export default class ChatInput {
       ['logo', 'send', 'icon-mirror'],
       ['schedule', 'schedule'],
       ['check', 'edit'],
-      ['microphone_filled', 'record'],
+      [IS_ANDROID ? 'microphone' : 'microphone_filled', 'record'],
       ['recordround_filled', 'record-video'],
       ['forward_filled', 'forward'],
       ['stop', 'stop']
@@ -3455,48 +3463,136 @@ export default class ChatInput {
   private mountAndroidGlass() {
     const row = this.newMessageWrapper;
     const send = this.btnSendContainer;
+    // what lies on a pulled drop (the clip, the text and the stickers button, the mic) goes with it: it stays in the
+    // middle of the body, stretched along the pull and squeezed across it
+    const carried: HTMLElement[][] = [
+      [this.attachMenu],
+      [row.querySelector('.input-message-container'), this.btnToggleEmoticons],
+      [send]
+    ].map((list) => list.filter(Boolean) as HTMLElement[]);
+    let carrying = 0;
+    let origins: string[] = [];
+    const carry = (state: GooeyState) => {
+      if(carrying && carrying !== state.stretch) carried[carrying - 1].forEach((el) => el.style.removeProperty('transform'));
+      if(state.stretch && carrying !== state.stretch) {
+        // the middle of the drop, in each element's own coordinates: what lies on it is squeezed and moved about that point
+        const size = send.offsetWidth, width = row.offsetWidth, height = row.offsetHeight;
+        const center = [{x: size / 2, y: height - size / 2}, {x: width / 2, y: height / 2}, {x: width - size / 2, y: height - size / 2}][state.stretch - 1];
+        origins = carried[state.stretch - 1].map((el) => `${center.x - el.offsetLeft}px ${center.y - el.offsetTop}px`);
+      }
+
+      carrying = state.stretch;
+      if(!carrying) return;
+      const {scale, scaleX} = stretchScales(state, send.offsetHeight);
+      // inside the body: it narrows and thins as the body does, and is in the middle of it
+      const value = `translate(${state.dragX / 2}px, ${state.dragY / 2}px) scale(${scaleX}, ${scale})`;
+      carried[carrying - 1].forEach((el, i) => {
+        el.style.setProperty('transform-origin', origins[i]);
+        el.style.setProperty('transform', value);
+      });
+    };
     const gooey = createGooeyGlass({
       host: row,
+      onRender: carry,
       getShapes: (width, height, state) => {
         const size = send.offsetWidth;
         const gap = parseFloat(getComputedStyle(row).columnGap) || 8;
         const closeLeft = (size / 2 + gap) * state.left;
         const closeRight = (size / 2 + gap) * state.right;
         const clip = state.swellClip * 3, field = state.swellField * 3, record = state.swellRecord * 3;
-        return [
+        const shapes = [
           {x: -clip, y: height - size - clip, width: size + clip * 2, height: size + clip * 2, radius: size / 2 + clip},
           {x: size + gap - closeLeft, y: -field, width: width - (size + gap) * 2 + closeLeft + closeRight, height: height + field * 2, radius: size / 2 + field},
           {x: width - size - record, y: height - size - record, width: size + record * 2, height: size + record * 2, radius: size / 2 + record}
         ];
+        if(state.stretch) {
+          // a drop pulled by a finger stays one body: a chain of copies from where it lies to where it is pulled, all as
+          // thin as the stretch makes it (the volume stays), so the goo gives one stretched capsule, never two balls
+          const home = shapes[state.stretch - 1];
+          const length = Math.hypot(state.dragX, state.dragY);
+          const {scale, scaleX} = stretchScales(state, home.height);
+          const steps = Math.max(1, Math.ceil(length / (home.height / 4)));
+          shapes.splice(state.stretch - 1, 1);
+          for(let i = 0; i <= steps; ++i) {
+            const t = i / steps;
+            shapes.push({
+              x: home.x + state.dragX * t + home.width * (1 - scaleX) / 2,
+              y: home.y + state.dragY * t + home.height * (1 - scale) / 2,
+              width: home.width * scaleX,
+              height: home.height * scale,
+              radius: home.radius * scale
+            });
+          }
+        }
+
+        return shapes;
       }
     });
 
-    // a finger held on a drop enlarges it and closes the gap on its side(s); a tap does the same and lets go
-    const PEAK = .2, MIN_HOLD = 140;
+    // a finger held on a drop enlarges it and closes the gap on its side(s); a tap does the same and lets go;
+    // pulled, the drop stretches after the finger and springs back
+    const PEAK = .2, MIN_HOLD = 140, DRAG_START = 6, DRAG_LIMIT = 28;
     let held = false;
+    let pulling = 0;
+    let dragged = false;
+    let origin: {x: number, y: number};
     let pressedAt = 0;
     let release: number;
     const onDown = (e: PointerEvent) => {
       const target = e.target as HTMLElement;
-      if(target.closest('.attach-file')) gooey.setState({left: PEAK, swellClip: 1});
-      else if(target.closest('.btn-send-container')) gooey.setState({right: PEAK, swellRecord: 1});
-      else if(target.closest('.input-message-container, .toggle-emoticons')) gooey.setState({left: PEAK, right: PEAK, swellField: 1});
-      else return;
+      if(target.closest('.attach-file')) {
+        gooey.setState({left: PEAK, swellClip: 1});
+        pulling = 1;
+      } else if(target.closest('.btn-send-container')) {
+        gooey.setState({right: PEAK, swellRecord: 1});
+        pulling = 3;
+      } else if(target.closest('.input-message-container, .toggle-emoticons')) {
+        gooey.setState({left: PEAK, right: PEAK, swellField: 1});
+        pulling = 2;
+      } else return;
       held = true;
+      dragged = false;
+      origin = {x: e.clientX, y: e.clientY};
       pressedAt = performance.now();
       clearTimeout(release);
+    };
+    const onMove = (e: PointerEvent) => {
+      if(!held || !pulling) return;
+      // the button was let go outside the page, where no pointerup comes
+      if(e.pointerType === 'mouse' && !e.buttons) {
+        onUp();
+        return;
+      }
+
+      const dx = e.clientX - origin.x, dy = e.clientY - origin.y;
+      const distance = Math.hypot(dx, dy);
+      if(!dragged && distance < DRAG_START) return;
+      dragged = true;
+      // it takes effort: the drop gives a thirtieth of what the finger moves, and the further it goes the harder it gets
+      const stretched = DRAG_LIMIT * Math.tanh(distance * .033 / DRAG_LIMIT);
+      gooey.drag(pulling, dx / distance * stretched, dy / distance * stretched);
     };
     const onUp = () => {
       if(!held) return;
       clearTimeout(release);
+      gooey.release();
       release = window.setTimeout(() => {
         held = false;
         gooey.setState({});
       }, Math.max(0, MIN_HOLD - (performance.now() - pressedAt)));
     };
     this.listenerSetter.add(row)('pointerdown', onDown);
+    this.listenerSetter.add(document)('pointermove', onMove);
     this.listenerSetter.add(document)('pointerup', onUp);
     this.listenerSetter.add(document)('pointercancel', onUp);
+    // a pull that ended on a button is not a press of it
+    this.listenerSetter.add(row)('click', (e) => {
+      if(dragged) {
+        e.stopPropagation();
+        e.preventDefault();
+        dragged = false;
+      }
+    }, true);
     // focus that came without a press (keyboard, a reply) still plays the merge once
     this.listenerSetter.add(row)('focusin', (e) => {
       if(!held && (e.target as HTMLElement).closest('.input-message-input')) gooey.pulse({left: PEAK, right: PEAK});
@@ -3508,7 +3604,7 @@ export default class ChatInput {
   }
 
   private notifyChatInputHeight() {
-    const baseHeight = 48;
+    const baseHeight = IS_ANDROID ? 42 : 48;
     const helperPx = this.helperVisible ? 48 : 0;
     const collapsedHeight = Math.max(baseHeight, this.messageInputNaturalHeight + 8) + helperPx;
     this.chatInput?.style.setProperty('--message-input-collapsed-height', `${collapsedHeight}px`);

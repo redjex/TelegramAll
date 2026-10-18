@@ -22,6 +22,8 @@ html.is-android {
   .chat {
     --chat-topbar-height: calc(3rem + var(--sat));
     --chat-input-height-surplus: var(--sab);
+    // the write bar of the design: 42px drops
+    --chat-input-height: 42px;
   }
 
   // the top bar is a floating card: it sits below the status bar instead of growing up under it
@@ -48,23 +50,22 @@ html.is-android {
     z-index: 1;
     inset-inline: 0;
     pointer-events: none;
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 
-  // the blur is an ellipse: strongest in the middle of the edge, curving away towards the sides
   .bubbles::before {
     top: 0;
-    height: var(--chat-padding-top);
-    mask-image: radial-gradient(ellipse 85% 100% at 50% 0, #000 45%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 85% 100% at 50% 0, #000 45%, transparent 100%);
+    height: calc(var(--chat-padding-top) + .5rem);
+    mask-image: linear-gradient(to bottom, #000 40%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
   }
 
   .bubbles::after {
     bottom: 0;
-    height: calc(3rem + var(--page-chats-padding) + var(--chat-input-height-surplus) + var(--sab));
-    mask-image: radial-gradient(ellipse 85% 100% at 50% 100%, #000 45%, transparent 100%);
-    -webkit-mask-image: radial-gradient(ellipse 85% 100% at 50% 100%, #000 45%, transparent 100%);
+    height: calc(var(--chat-input-height) + var(--page-chats-padding) + var(--chat-input-height-surplus) + var(--sab) + .75rem);
+    mask-image: linear-gradient(to top, #000 40%, transparent);
+    -webkit-mask-image: linear-gradient(to top, #000 40%, transparent);
   }
 
   // lists end above the gesture bar, but draw under it
@@ -435,6 +436,12 @@ html.is-android {
     -webkit-mask-composite: xor;
   }
 
+  // the light on the rim, drawn by gooeyGlass.ts over the glass
+  .gooey-glass-highlight {
+    background-size: 100% 100%;
+    opacity: .9;
+  }
+
   .gooey-glass-body {
     background:
       linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 55%),
@@ -443,11 +450,16 @@ html.is-android {
     backdrop-filter: blur(14px) var(--as-glass-after);
   }
 
+  // the bar stands 28px from the edges
+  .chat-input-container {
+    padding-inline: 28px;
+  }
+
   .chat-input-wrapper {
     --padding-vertical: 0px;
     --padding-horizontal: 0px;
-    --button-size: 3rem;
-    --button-horizontal-margin: .5rem;
+    --button-size: 42px;
+    --button-horizontal-margin: 6px;
     background: none;
     box-shadow: none;
     border-radius: 0;
@@ -471,11 +483,25 @@ html.is-android {
       margin-inline-start: 1rem;
     }
 
+    // a finger pulls these drops, so the page must not scroll under it
+    .attach-file,
+    .btn-send-container,
+    .toggle-emoticons,
+    .input-message-container {
+      touch-action: none;
+    }
+
     .attach-file,
     .btn-send-container {
       width: var(--button-size);
       height: var(--button-size);
       border-radius: 50%;
+    }
+
+    // the icons of the design are 22px
+    .btn-icon,
+    .btn-send {
+      font-size: 22px;
     }
 
     .attach-file {

@@ -14,6 +14,7 @@ import ChatTopbar from '@components/chat/topbar';
 import {HIDDEN_PEER_ID, NULL_PEER_ID, REPLIES_HIDDEN_CHANNEL_ID, REPLIES_PEER_ID, SEND_PAID_WITH_STARS_DELAY, SERVICE_PEER_ID, VERIFICATION_CODES_BOT_ID} from '@appManagers/constants';
 import {AppPrivateSearchTab} from '@components/solidJsTabs/tabs';
 import mediaSizes, {ScreenSize} from '@helpers/mediaSizes';
+import {IS_ANDROID} from '@environment/userAgent';
 import ChatSearch from '@components/chat/search';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
 import ChatBackgroundGradientRenderer from '@components/chat/gradientRenderer';
@@ -359,7 +360,8 @@ export default class Chat extends EventListenerBase<{
     // in sync across mobile<->desktop transitions by the 'changeScreen' listener in init().
     const collapse = this.isPreview || mediaSizes.isMobile;
     const topBase = collapse ? 3.5 : 4.5;
-    const bottomBase = collapse ? 3.5 : 4;
+    // the Android write bar is 42px high, not 48
+    const bottomBase = collapse ? (IS_ANDROID ? 3.125 : 3.5) : 4;
     const top = Math.round(topBase * rem + this.pinnedFloatingHeightPx);
     const bottom = Math.round(bottomBase * rem + this.chatInputSurplusPx);
     this.chatPaddingTop[1](top);
