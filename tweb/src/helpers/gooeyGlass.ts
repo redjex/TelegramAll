@@ -1,34 +1,31 @@
 /**
- * Drops of glass that run into one another, as the glass of iOS 26 does (GlassEffectContainer): the
- * shapes are drawn into an SVG, blurred and cut hard on the alpha channel (the "gooey" / metaball trick), so
- * that where two of them come close a neck grows between them. That SVG is the mask of one glass layer
- * (a blurred, tinted backdrop), so the glass has exactly the outline of the merged shapes. Two more layers
- * with the same mask give the rim (the shape grown by 1px) and the soft shadow under it.
+ * Drops of glass that run into one another, as the glass of iOS 26 does (GlassEffectContainer).
  *
- * Browsers with no `mask-image` on a backdrop-filter element draw the layer as a plain rectangle, which is
- * why the caller only uses it on Android (Chromium).
+ * Every drop is one element with a `border-radius`, a blurred and tinted backdrop, a soft shadow and a rim of light
+ * (an inset shadow). They are placed and sized in the same frame as whatever moves on them, with nothing to load:
+ * a drop that touches or overlaps another (a pulled one is a chain of copies, two merged ones touch) is drawn as
+ * one drop over their joint box. The bend of the backdrop at the rim (a convex "squircle" lens as in kube.io's
+ * write-up of Apple's Liquid Glass: Snell's law, glass 1.5) comes from a displacement map made for each drop once
+ * it stands still.
  */
 
 import {SUPPORTS_LIQUID_GLASS, createLiquidFilter, sdRoundRect} from '@helpers/liquidGlass';
 
-/** room around the row for the blur of the goo filter, in px */
+/** room around the row for what stretches out of it (a pulled drop), in px */
 const PAD = 48;
 /** the refraction map is drawn at this fraction of the size: it is smooth, and the per-pixel work is quartered */
 const MAP_SCALE = .5;
 /**
- * The glass of the drops: a convex "squircle" lens as in kube.io's write-up of Apple's Liquid Glass. The bezel
- * is the rim (px) in which the surface curves from the edge up to the flat top; the lens is HEIGHT px high at
- * the top and rests on THICKNESS px of flat glass. Light arrives straight down on the backdrop and bends at the
+ * The bezel is the rim (px) in which the surface curves from the edge up to the flat top; the lens is HEIGHT px high
+ * at the top and rests on THICKNESS px of flat glass. Light arrives straight down on the backdrop and bends at the
  * surface by Snell's law (air 1, glass 1.5).
  */
-const BEZEL = 16;
-const HEIGHT = 20;
-const THICKNESS = 8;
+const BEZEL = 20;
+const HEIGHT = 26;
+const THICKNESS = 10;
 const IOR = 1.5;
-/** the light for the highlight comes from this side (a unit vector: up and to the left) */
-const LIGHT_X = -.6, LIGHT_Y = -.8;
-/** how far apart two shapes may be for their distance fields to run into one (the neck), in px */
-const NECK = 10;
+/** the most drops that are apart at once: the clip, the field, the record button */
+const DROPS = 3;
 
 export type GooeyShape = {
   x: number,
@@ -38,21 +35,6 @@ export type GooeyShape = {
   /** corner radius, at most half of the smaller side */
   radius: number
 };
-
-function buildMask(width: number, height: number, shapes: GooeyShape[], grow: number) {
-  const w = width + PAD * 2, h = height + PAD * 2;
-  const body = shapes.map((s) => {
-    const r = Math.min(s.radius, s.width / 2, s.height / 2);
-    return `<rect x="${s.x + PAD}" y="${s.y + PAD}" width="${s.width}" height="${s.height}" rx="${r}"/>`;
-  }).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
-    `<filter id="g" filterUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}" color-interpolation-filters="sRGB">` +
-    '<feGaussianBlur stdDeviation="3"/>' +
-    '<feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"/>' +
-    (grow ? `<feMorphology operator="dilate" radius="${grow}"/>` : '') +
-    `</filter><g filter="url(#g)" fill="#000">${body}</g></svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-}
 
 /**
  * What the drops are doing, each 0 … 1: how far the gap between the clip and the field (`left`) and between
@@ -69,24 +51,6 @@ export type GooeyState = {
   dragX: number,
   dragY: number
 };
-
-/** the signed distance to the union of the shapes, with the joints rounded (a polynomial smooth minimum) */
-function sdShapes(x: number, y: number, shapes: GooeyShape[]) {
-  let d = Infinity;
-  for(const s of shapes) {
-    const r = Math.min(s.radius, s.width / 2, s.height / 2);
-    const e = sdRoundRect(x - s.x, y - s.y, s.width, s.height, r);
-    if(d === Infinity) {
-      d = e;
-      continue;
-    }
-
-    const h = Math.max(NECK - Math.abs(d - e), 0) / NECK;
-    d = Math.min(d, e) - h * h * NECK * .25;
-  }
-
-  return d;
-}
 
 const PROFILE_SIZE = 128;
 
@@ -116,60 +80,73 @@ const PROFILE = (() => {
   return {pull, max};
 })();
 
-/** the largest shift of the backdrop in px: the `scale` of the displacement filter */
-const MAX_PULL = PROFILE.max;
+/** the largest shift of the backdrop in px: the `scale` of the displacement filter (stronger than the physics: it is a small lens) */
+const MAX_PULL = PROFILE.max * 2.2;
 
-/** the displacement map of the merged shapes and the highlight on its rim, both as PNG data URLs */
-function drawMaps(width: number, height: number, shapes: GooeyShape[]) {
-  const w = Math.round((width + PAD * 2) * MAP_SCALE), h = Math.round((height + PAD * 2) * MAP_SCALE);
-  const make = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    return {canvas, ctx, image: ctx.createImageData(w, h)};
-  };
-  const map = make(), spec = make();
+/** the displacement map of a rounded rectangle (the same convention as helpers/liquidGlass.ts), as a PNG data URL */
+function drawMap(width: number, height: number, radius: number) {
+  const w = Math.max(1, Math.round(width * MAP_SCALE)), h = Math.max(1, Math.round(height * MAP_SCALE));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(w, h);
   const k = 1 / MAP_SCALE;
-  const local = shapes.map((s) => ({...s, x: s.x + PAD, y: s.y + PAD}));
   for(let y = 0; y < h; ++y) {
     for(let x = 0; x < w; ++x) {
       const px = (x + .5) * k, py = (y + .5) * k;
-      const depth = -sdShapes(px, py, local);
-      let dx = 0, dy = 0, light = 0;
+      const depth = -sdRoundRect(px, py, width, height, radius);
+      let dx = 0, dy = 0;
       if(depth > 0 && depth < BEZEL) {
-        const nx = sdShapes(px + 1, py, local) - sdShapes(px - 1, py, local);
-        const ny = sdShapes(px, py + 1, local) - sdShapes(px, py - 1, local);
+        const nx = sdRoundRect(px + 1, py, width, height, radius) - sdRoundRect(px - 1, py, width, height, radius);
+        const ny = sdRoundRect(px, py + 1, width, height, radius) - sdRoundRect(px, py - 1, width, height, radius);
         const len = Math.hypot(nx, ny) || 1;
-        const ox = nx / len, oy = ny / len;
         const magnitude = PROFILE.pull[Math.round((1 - depth / BEZEL) * (PROFILE_SIZE - 1))];
-        dx = -ox * magnitude;
-        dy = -oy * magnitude;
-        if(depth < 5) {
-          // the rim catches the light on the side it comes from, and a little on the opposite one
-          const facing = ox * LIGHT_X + oy * LIGHT_Y;
-          const fall = Math.exp(-Math.pow(depth / 1.8, 2));
-          light = (Math.pow(Math.max(0, facing), 3) + .35 * Math.pow(Math.max(0, -facing), 3)) * fall;
-        }
+        dx = -(nx / len) * magnitude;
+        dy = -(ny / len) * magnitude;
       }
 
       const i = (y * w + x) * 4;
-      map.image.data[i] = Math.round(128 + dx * 127);
-      map.image.data[i + 1] = Math.round(128 + dy * 127);
-      map.image.data[i + 2] = 128;
-      map.image.data[i + 3] = 255;
-      spec.image.data[i] = spec.image.data[i + 1] = spec.image.data[i + 2] = 255;
-      spec.image.data[i + 3] = Math.round(Math.min(1, light) * 255);
+      image.data[i] = Math.round(128 + dx * 127);
+      image.data[i + 1] = Math.round(128 + dy * 127);
+      image.data[i + 2] = 128;
+      image.data[i + 3] = 255;
     }
   }
 
-  map.ctx.putImageData(map.image, 0, 0);
-  spec.ctx.putImageData(spec.image, 0, 0);
-  return {map: map.canvas.toDataURL(), spec: spec.canvas.toDataURL()};
+  ctx.putImageData(image, 0, 0);
+  return canvas.toDataURL();
+}
+
+/** shapes that overlap (or all but touch) are one drop: their joint box, with the largest radius that fits */
+function cluster(shapes: GooeyShape[]) {
+  const parent = shapes.map((_, i) => i);
+  const find = (i: number): number => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  const near = (a: GooeyShape, b: GooeyShape) => a.x <= b.x + b.width + .5 && b.x <= a.x + a.width + .5 &&
+    a.y <= b.y + b.height + .5 && b.y <= a.y + a.height + .5;
+  for(let i = 0; i < shapes.length; ++i) {
+    for(let j = i + 1; j < shapes.length; ++j) {
+      if(near(shapes[i], shapes[j])) parent[find(j)] = find(i);
+    }
+  }
+
+  const groups = new Map<number, GooeyShape[]>();
+  shapes.forEach((s, i) => {
+    const key = find(i);
+    groups.set(key, (groups.get(key) || []).concat(s));
+  });
+
+  return [...groups.values()].map((group) => {
+    const x = Math.min(...group.map((s) => s.x)), y = Math.min(...group.map((s) => s.y));
+    const right = Math.max(...group.map((s) => s.x + s.width)), bottom = Math.max(...group.map((s) => s.y + s.height));
+    const width = right - x, height = bottom - y;
+    const radius = Math.min(Math.max(...group.map((s) => s.radius)), width / 2, height / 2);
+    return {x, y, width, height, radius} as GooeyShape;
+  });
 }
 
 export type GooeyGlassOptions = {
-  /** the box the drops live in; the layer is as big as it */
+  /** the box the drops live in; the layer is as big as it, and PAD more on every side */
   host: HTMLElement,
   /** the shapes for the current state, in the host's coordinates */
   getShapes: (width: number, height: number, state: GooeyState) => GooeyShape[],
@@ -190,27 +167,24 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
   const layer = document.createElement('div');
   layer.className = 'gooey-glass';
   layer.style.setProperty('--gooey-pad', PAD + 'px');
-  const shadow = document.createElement('div');
-  shadow.className = 'gooey-glass-shadow';
-  const shadowInner = document.createElement('div');
-  shadow.append(shadowInner);
-  const rim = document.createElement('div');
-  rim.className = 'gooey-glass-rim';
-  const glass = document.createElement('div');
-  glass.className = 'gooey-glass-body';
-  // the light on the rim, over the glass (masked to the shape like the glass itself)
-  const highlight = document.createElement('div');
-  highlight.className = 'gooey-glass-highlight';
-  layer.append(shadow, rim, glass, highlight);
   host.prepend(layer);
 
-  // the glass bends what lies behind it at its rim (Chromium only; elsewhere it stays a blur)
-  const refraction = SUPPORTS_LIQUID_GLASS ? createLiquidFilter() : undefined;
-  if(refraction) {
-    const value = `url(#${refraction.id}) blur(7px) var(--as-glass-after)`;
-    glass.style.setProperty('backdrop-filter', value);
-    glass.style.setProperty('-webkit-backdrop-filter', value);
-  }
+  // The bend of the backdrop (Chromium only; elsewhere the drop stays a blur). It is off while a drop is pulled, and
+  // comes back a moment after the drops have settled: the map is made for the drop that stands still.
+  const drops = Array.from({length: DROPS}, () => {
+    const element = document.createElement('div');
+    element.className = 'gooey-glass-drop';
+    layer.append(element);
+    return {element, filter: SUPPORTS_LIQUID_GLASS ? createLiquidFilter() : undefined, refracting: false, box: undefined as GooeyShape, mapped: ''};
+  });
+
+  const setRefracting = (drop: typeof drops[number], on: boolean) => {
+    if(!drop.filter || on === drop.refracting) return;
+    drop.refracting = on;
+    const value = `${on ? `url(#${drop.filter.id}) ` : ''}blur(1.5px) var(--as-glass-after)`;
+    drop.element.style.setProperty('backdrop-filter', value);
+    drop.element.style.setProperty('-webkit-backdrop-filter', value);
+  };
 
   let state: GooeyState = {...REST};
   let target: GooeyState = {...REST};
@@ -218,37 +192,43 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
   let raf = 0, start = 0, done: () => void;
   let springRaf = 0;
 
-  // the maps are the dear part, so while things move they are made a few times a second, and once more when they stop
   let mapTimer = 0;
-  let latest: {width: number, height: number, shapes: GooeyShape[]};
-  const scheduleMaps = (width: number, height: number, shapes: GooeyShape[]) => {
-    latest = {width, height, shapes};
-    if(mapTimer) return;
-    const moving = raf || springRaf || state.stretch;
-    mapTimer = window.setTimeout(() => {
-      mapTimer = 0;
-      const maps = drawMaps(latest.width, latest.height, latest.shapes);
-      refraction?.update(latest.width + PAD * 2, latest.height + PAD * 2, maps.map, MAX_PULL);
-      highlight.style.setProperty('background-image', `url("${maps.spec}")`);
-    }, moving ? 50 : 0);
+  const settle = () => {
+    mapTimer = 0;
+    if(state.stretch) return;
+    for(const drop of drops) {
+      if(!drop.box) continue;
+      const {width, height, radius} = drop.box;
+      drop.filter?.update(width, height, drawMap(width, height, radius), MAX_PULL);
+      drop.mapped = `${width}x${height}`;
+      setRefracting(drop, true);
+    }
   };
 
   const render = () => {
     const width = host.offsetWidth, height = host.offsetHeight;
     if(!width || !height) return;
-    const shapes = getShapes(width, height, state);
-    scheduleMaps(width, height, shapes);
+    const boxes = cluster(getShapes(width, height, state));
+    drops.forEach((drop, i) => {
+      const box = boxes[i];
+      drop.box = box;
+      const style = drop.element.style;
+      if(!box) {
+        style.setProperty('display', 'none');
+        return;
+      }
 
-    const set = (el: HTMLElement, mask: string) => {
-      el.style.setProperty('mask-image', mask);
-      el.style.setProperty('-webkit-mask-image', mask);
-    };
-    const body = buildMask(width, height, shapes, 0);
-    set(shadowInner, body);
-    set(glass, body);
-    set(highlight, body);
-    // the rim is only the ring: the grown shape with the shape itself cut out of it
-    set(rim, `${buildMask(width, height, shapes, 1)}, ${body}`);
+      style.setProperty('display', '');
+      style.setProperty('left', PAD + box.x + 'px');
+      style.setProperty('top', PAD + box.y + 'px');
+      style.setProperty('width', box.width + 'px');
+      style.setProperty('height', box.height + 'px');
+      style.setProperty('border-radius', box.radius + 'px');
+      // the bend was made for the size the drop had: while it has another, the drop is a plain blur
+      if(state.stretch || drop.mapped !== `${box.width}x${box.height}`) setRefracting(drop, false);
+    });
+
+    if(!state.stretch && !mapTimer) mapTimer = window.setTimeout(settle, 60);
     options.onRender?.(state);
   };
 
@@ -292,12 +272,13 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
     render();
   };
 
-  /** the finger lets go: the drop springs back, overshoots a little and settles, the neck snapping with it */
+  /** the finger lets go: the drop springs back and settles, the neck snapping with it */
   const release = () => {
     if(!state.stretch) return;
     cancelAnimationFrame(springRaf);
     let vx = 0, vy = 0, last = performance.now();
-    const STIFFNESS = 280, DAMPING = 14;
+    // critically damped: it settles with no overshoot, so it can never swell past where it was
+    const STIFFNESS = 300, DAMPING = 2 * Math.sqrt(300);
     const spring = (now: number) => {
       const dt = Math.min(.032, (now - last) / 1000);
       last = now;
@@ -334,7 +315,7 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
       cancelAnimationFrame(raf);
       cancelAnimationFrame(springRaf);
       clearTimeout(mapTimer);
-      refraction?.remove();
+      drops.forEach((drop) => drop.filter?.remove());
       observer.disconnect();
       layer.remove();
     }

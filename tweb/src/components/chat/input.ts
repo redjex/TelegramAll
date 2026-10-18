@@ -3567,9 +3567,10 @@ export default class ChatInput {
       const dx = e.clientX - origin.x, dy = e.clientY - origin.y;
       const distance = Math.hypot(dx, dy);
       if(!dragged && distance < DRAG_START) return;
+      if(!dragged) gooey.setState({});
       dragged = true;
-      // it takes effort: the drop gives a thirtieth of what the finger moves, and the further it goes the harder it gets
-      const stretched = DRAG_LIMIT * Math.tanh(distance * .033 / DRAG_LIMIT);
+      // it takes effort: the drop gives a sixtieth of what the finger moves, and the further it goes the harder it gets
+      const stretched = DRAG_LIMIT * Math.tanh(distance * .016 / DRAG_LIMIT);
       gooey.drag(pulling, dx / distance * stretched, dy / distance * stretched);
     };
     const onUp = () => {

@@ -330,13 +330,13 @@ html.is-android.night {
   --as-pressed: rgba(255, 255, 255, .06);
   --as-glass: rgba(255, 255, 255, .06);
   --as-glass-edge: rgba(255, 255, 255, .16);
-  --as-glass-rim: rgba(255, 255, 255, .28);
+  --as-glass-rim: rgba(255, 255, 255, .2);
   --as-glass-sheen: rgba(255, 255, 255, .07);
   --as-glass-after: saturate(130%);
   --as-rim-hi: rgba(255, 255, 255, .42);
   --as-rim-lo: rgba(255, 255, 255, .05);
   --as-glass-shadow: rgba(0, 0, 0, .35);
-  --tab-glass: rgba(44, 44, 48, .55);
+  --tab-glass: rgba(150, 150, 160, .14);
   --droplet-tint: 120, 170, 255;
   --as-fade-1: 97%;
   --as-fade-2: 92%;
@@ -409,50 +409,30 @@ html.is-android {
     z-index: 0;
     inset: calc(var(--gooey-pad) * -1);
     pointer-events: none;
-
-    > *,
-    > * > * {
-      position: absolute;
-      inset: 0;
-      mask-size: 100% 100%;
-      -webkit-mask-size: 100% 100%;
-    }
   }
 
-  .gooey-glass-shadow {
-    filter: blur(9px);
-    transform: translateY(6px);
-
-    > * {
-      background: var(--as-glass-shadow);
-      opacity: .7;
-    }
-  }
-
-  .gooey-glass-rim {
-    background: var(--as-glass-rim);
-    // the two masks (the grown shape, the shape) cancel out in the middle: a ring is left
-    mask-composite: exclude;
-    -webkit-mask-composite: xor;
-  }
-
-  // the light on the rim, drawn by gooeyGlass.ts over the glass
-  .gooey-glass-highlight {
-    background-size: 100% 100%;
-    opacity: .9;
-  }
-
-  .gooey-glass-body {
+  // one drop: the blurred, tinted backdrop with a soft shadow and a rim of light (gooeyGlass.ts sets its box)
+  .gooey-glass-drop {
+    position: absolute;
     background:
       linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 55%),
       var(--tab-glass);
-    -webkit-backdrop-filter: blur(14px) var(--as-glass-after);
-    backdrop-filter: blur(14px) var(--as-glass-after);
+    -webkit-backdrop-filter: blur(1.5px) var(--as-glass-after);
+    backdrop-filter: blur(1.5px) var(--as-glass-after);
+    box-shadow: 0 6px 18px var(--as-glass-shadow), inset 0 0 0 1px var(--as-glass-rim);
   }
+
+  // dark theme: a clearer, lighter glass and 
 
   // the bar stands 28px from the edges
   .chat-input-container {
     padding-inline: 28px;
+    transition: padding-inline var(--transition-standard-in);
+
+    // typing: the field widens over the screen and pushes the clip and the mic out to the edges
+    &:has(.input-message-input:focus) {
+      padding-inline: 0;
+    }
   }
 
   .chat-input-wrapper {
@@ -504,14 +484,16 @@ html.is-android {
       font-size: 22px;
     }
 
-    .attach-file {
-      color: var(--as-gray);
+    // the icons: black on the light theme, white on the dark one
+    .attach-file,
+    .toggle-emoticons {
+      color: #000;
     }
 
     // the record button: no blue fill, grey like the other icons (the send arrow stays blue)
     .btn-send {
       --size: var(--button-size);
-      color: var(--as-gray) !important;
+      color: #000 !important;
       background: none !important;
 
       &.send,
@@ -520,6 +502,24 @@ html.is-android {
       &.forward {
         color: var(--as-blue) !important;
       }
+    }
+  }
+}
+
+html.is-android.night .chat-input-wrapper {
+  .attach-file,
+  .toggle-emoticons {
+    color: #fff;
+  }
+
+  .btn-send {
+    color: #fff !important;
+
+    &.send,
+    &.edit,
+    &.schedule,
+    &.forward {
+      color: var(--as-blue) !important;
     }
   }
 }
