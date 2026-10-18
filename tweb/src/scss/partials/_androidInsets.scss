@@ -425,12 +425,17 @@ html.is-android {
   // the glow: a strongly blurred and saturated backdrop under the drop, at its edge only (the dark theme)
   .gooey-glass-glow {
     position: absolute;
-    -webkit-backdrop-filter: blur(18px) saturate(170%) brightness(.95);
-    backdrop-filter: blur(18px) saturate(170%) brightness(.95);
-    opacity: .6;
+    -webkit-backdrop-filter: blur(18px) saturate(240%) brightness(1);
+    backdrop-filter: blur(18px) saturate(240%) brightness(1);
+    opacity: var(--glow-opacity, .45);
     mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, transparent 30%, #000 100%);
     -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, transparent 30%, #000 100%);
     pointer-events: none;
+  }
+
+  // the write bar glows a little, the top bar more
+  .chat-info-container {
+    --glow-opacity: .8;
   }
 
   &:not(.night) .gooey-glass-glow {
