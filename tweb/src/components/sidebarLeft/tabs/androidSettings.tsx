@@ -45,8 +45,7 @@ function formatPhone(phone: string) {
  * rounded cards of rows — a gradient square with a white glyph, a title and a grey line under it.
  */
 export default function AndroidSettings(props: {
-  cards: AndroidSettingsCard[],
-  onEditProfile: () => void
+  cards: AndroidSettingsCard[]
 }) {
   const user = usePeer(() => rootScope.myId);
 
@@ -62,9 +61,6 @@ export default function AndroidSettings(props: {
       <div class={styles.header}>
         <div class={styles.avatar}>
           <AvatarNewTsx peerId={rootScope.myId} size={90} isDialog={false} />
-          <button class={styles.camera} onClick={props.onEditProfile} aria-label="Set profile photo">
-            <span class={styles.cameraInner} />
-          </button>
         </div>
         <div class={styles.name}><PeerTitleTsx peerId={rootScope.myId} /></div>
         <div class={styles.info}>{subtitle()}</div>

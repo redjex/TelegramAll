@@ -537,6 +537,7 @@ function TopSection(props: {
 
     // 1. Paint the visible compact canvas.
     paintTo(canvas, DISPLAY_LAYOUT);
+    if(IS_ANDROID) canvas.style.opacity = '1';
 
     // 2. Re-paint the offscreen iOS-dimensioned canvas, then pre-bake its PNG
     // blob. The Copy click handler ships THIS blob to `clipboard.write` —
@@ -1082,10 +1083,22 @@ function AndroidQrSwipe() {
   let sentinel!: HTMLDivElement;
   onMount(() => {
     const stop = attachAndroidQrSwipe(sentinel);
-    // the screen takes the whole display: the gesture strip goes away while it is up
-    setAndroidNavigationHidden(true);
+    // The screen takes the whole display: the gesture strip goes away while it is up. It goes once the
+    // screen has come up over the bar (the bar moves with the strip, and moving under the rising screen
+    // would be seen), and comes back the moment the screen starts to go down.
+    const popup = sentinel.closest<HTMLElement>('.popup');
+    const hideTimeout = setTimeout(() => setAndroidNavigationHidden(true), 450);
+    const observer = new MutationObserver(() => {
+      if(!popup.classList.contains('active')) {
+        clearTimeout(hideTimeout);
+        setAndroidNavigationHidden(false);
+      }
+    });
+    observer.observe(popup, {attributes: true, attributeFilter: ['class']});
     onCleanup(() => {
       stop?.();
+      clearTimeout(hideTimeout);
+      observer.disconnect();
       setAndroidNavigationHidden(false);
     });
   });
@@ -1113,7 +1126,9 @@ export default async function showMyQrCodePopup(peerId: PeerId = rootScope.myId,
     // fade transition is ~150ms — without the gate the popup snaps in against
     // an empty canvas, with the wallpaper popping in a beat later. The first
     // TopSection repaint signals readiness via `onWallpaperReady`.
-    const [show, setShow] = createSignal(false);
+    // Android: the screen comes up at once, over its own colour, and the wallpaper fades in as soon as it is
+    // painted (waiting for it first left the screen a second late and the bar below it moving for nothing)
+    const [show, setShow] = createSignal(IS_ANDROID);
     const onWallpaperReady = () => {
       if(show()) return;
       setShow(true);

@@ -121,6 +121,9 @@
     inset: 0;
     width: 100% !important;
     height: 100% !important;
+    // painted, it fades in (paint() sets the opacity)
+    opacity: 0;
+    transition: opacity .35s ease;
   }
 
   // the sheet: one white plate with a margin all around, rounded on every side (its two halves, the
