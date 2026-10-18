@@ -3494,17 +3494,19 @@ export default class ChatInput {
         el.style.setProperty('transform', value);
       });
     };
+    let metrics: {size: number, gap: number, helper: number} | undefined;
     const gooey = createGooeyGlass({
       host: row,
       onRender: carry,
       getShapes: (width, height, state) => {
-        const size = unit();
-        const gap = parseFloat(getComputedStyle(row).columnGap) || 8;
+        // what the layout says is read once for a whole pull: it does not move in it
+        if(!state.stretch || !metrics) metrics = {size: unit(), gap: parseFloat(getComputedStyle(row).columnGap) || 8, helper: this.replyElements?.container?.offsetHeight || 0};
+        const {size, gap} = metrics;
         const closeLeft = (size / 2 + gap) * state.left;
         const closeRight = (size / 2 + gap) * state.right;
         const clip = state.swellClip * 3, field = state.swellField * 3, record = state.swellRecord * 3;
         // a reply (or an edit) stands inside the field, over its top: the field's drop is as much taller
-        const helper = this.replyElements?.container?.offsetHeight || 0;
+        const helper = metrics.helper;
         // typing: the record drop shrinks away and the field takes its place, out to the right edge
         const room = (size + gap) * state.typing;
         const gone = 1 - state.typing;

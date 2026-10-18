@@ -78,13 +78,16 @@ export default function createDropGestures(options: DropGesturesOptions) {
   const wideOf = options.wide || (() => false);
   const {share, limit} = options.pull || {share: .05, limit: 28};
 
+  let baseCache: GooeyShape[] | undefined;
   const swells = (state: GooeyState) => [state.swellClip, state.swellField, state.swellRecord].map((value) => value * 3);
 
   const gooey = createGooeyGlass({
     host,
     getShapes: (width, height, state) => {
       const swell = swells(state);
-      let shapes = options.base(host).map((shape, i) => ({
+      // where the drops lie is read from the layout once for a whole pull (the layout does not move in it)
+      if(!state.stretch || !baseCache) baseCache = options.base(host);
+      let shapes = baseCache.map((shape, i) => ({
         ...shape,
         x: shape.x - swell[i],
         y: shape.y - swell[i],
@@ -112,7 +115,7 @@ export default function createDropGestures(options: DropGesturesOptions) {
   const carry = (state: GooeyState) => {
     if(carrying && carrying !== state.stretch) options.carried(carrying).forEach((el) => el.style.removeProperty('transform'));
     if(state.stretch && carrying !== state.stretch) {
-      const home = options.base(host)[state.stretch - 1];
+      const home = (baseCache || options.base(host))[state.stretch - 1];
       const box = host.getBoundingClientRect();
       const center = {x: box.left + home.x + home.width / 2, y: box.top + home.y + home.height / 2};
       origins = options.carried(state.stretch).map((el) => {

@@ -37,7 +37,7 @@ import wrapPeerTitle from '@components/wrappers/peerTitle';
 import groupCallsController from '@lib/calls/groupCallsController';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import {makeMediaSize} from '@helpers/mediaSize';
-import {FOLDER_ID_ALL} from '@appManagers/constants';
+import {FOLDER_ID_ALL, FOLDER_ID_ARCHIVE} from '@appManagers/constants';
 import formatNumber from '@helpers/number/formatNumber';
 import {modifyAckedPromise} from '@helpers/modifyAckedResult';
 import callbackify from '@helpers/callbackify';
@@ -1154,17 +1154,33 @@ export default class ChatTopbar {
       if(peerId === this.peerId) void this.updateWelcomeMoreButton();
     });
 
+    // the back button counts the chats that have something unread, in the main list and in the archive (this one is being read)
+    const unreadByFolder = new Map<number, number>();
+    const showUnread = () => {
+      if(!this.btnBackBadge) return;
+      let size = 0;
+      unreadByFolder.forEach((count) => size += count);
+      // * it is shown on handhelds only (`.back-unread-badge`): elsewhere a roll is for nobody
+      setBadgeCount(this.btnBackBadge, size, formatNumber(size, 1), mediaSizes.isMobile);
+    };
     this.listenerSetter.add(rootScope)('folder_unread', (folder) => {
-      if(!this.btnBackBadge || folder.id !== FOLDER_ID_ALL) {
+      if(!this.btnBackBadge || (folder.id !== FOLDER_ID_ALL && folder.id !== FOLDER_ID_ARCHIVE)) {
         return;
       }
 
-      const size = folder.unreadUnmutedPeerIds.size;
-      // * it is shown on handhelds only (`.back-unread-badge`): elsewhere a roll is for nobody
-      setBadgeCount(this.btnBackBadge, size, formatNumber(size, 1), mediaSizes.isMobile);
-      // this.btnBack.classList.remove('tgico-left', 'tgico-previous');
-      // this.btnBack.classList.add(size ? 'tgico-previous' : 'tgico-left');
+      unreadByFolder.set(folder.id, folder.unreadUnmutedPeerIds.size - (folder.unreadUnmutedPeerIds.has(this.peerId) ? 1 : 0));
+      showUnread();
     });
+
+    // the count is known from the start, not only once something changes
+    if(this.btnBackBadge) {
+      [FOLDER_ID_ALL, FOLDER_ID_ARCHIVE].forEach((folderId) => {
+        rootScope.managers.dialogsStorage.getFolderUnreadCount(folderId).then(({unreadUnmutedCount}) => {
+          if(!unreadByFolder.has(folderId)) unreadByFolder.set(folderId, unreadUnmutedCount);
+          showUnread();
+        });
+      });
+    }
 
     this.listenerSetter.add(rootScope)('chat_update', (chatId) => {
       if(this.peerId === chatId.toPeerId(true)) {

@@ -208,6 +208,17 @@ const REST: GooeyState = {left: 0, right: 0, swellClip: 0, swellField: 0, swellR
 /** what the tween leaves alone: the drag has a spring of its own */
 const NOT_TWEENED = new Set<keyof GooeyState>(['stretch', 'dragX', 'dragY', 'typing']);
 
+/** writes a style only when it changes: a frame that moves little then costs the browser little */
+const written = new WeakMap<HTMLElement, Record<string, string>>();
+function put(el: HTMLElement, prop: string, value: string) {
+  let cache = written.get(el);
+  if(!cache) written.set(el, cache = {});
+  if(cache[prop] === value) return;
+  cache[prop] = value;
+  if(value === '') el.style.removeProperty(prop);
+  else el.style.setProperty(prop, value);
+}
+
 export default function createGooeyGlass(options: GooeyGlassOptions) {
   const {host, getShapes} = options;
   const duration = options.duration ?? 140;
@@ -241,11 +252,7 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
     drop.element.style.setProperty('-webkit-backdrop-filter', value);
   };
 
-  let state: GooeyState = {...REST};
-  let target: GooeyState = {...REST};
-  let from: GooeyState = {...REST};
-  let raf = 0, start = 0, done: () => void;
-  let springRaf = 0;
+  const state: GooeyState = {...REST};
 
   let mapTimer = 0;
   const settle = () => {
@@ -265,172 +272,183 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
   const render = () => {
     const width = host.offsetWidth, height = host.offsetHeight;
     if(!width || !height) return;
+    const pulled = state.stretch !== 0;
     const boxes = cluster(getShapes(width, height, state));
     drops.forEach((drop, i) => {
       const box = boxes[i];
       drop.box = box;
-      const style = drop.element.style;
       if(!box) {
-        style.setProperty('display', 'none');
-        drop.rim.style.setProperty('display', 'none');
-        drop.glow.style.setProperty('display', 'none');
+        put(drop.element, 'display', 'none');
+        put(drop.rim, 'display', 'none');
+        put(drop.glow, 'display', 'none');
         return;
       }
 
-      style.setProperty('display', '');
+      put(drop.element, 'display', '');
       const joined = box.members.length > 1;
       // drops that have run together are one drop with soft edges: the box grows a little for them, and a mask cuts it
       const grow = joined ? SOFT : 0;
       const place = (el: HTMLElement) => {
-        el.style.setProperty('left', PAD + box.x - grow + 'px');
-        el.style.setProperty('top', PAD + box.y - grow + 'px');
-        el.style.setProperty('width', box.width + grow * 2 + 'px');
-        el.style.setProperty('height', box.height + grow * 2 + 'px');
+        put(el, 'left', PAD + box.x - grow + 'px');
+        put(el, 'top', PAD + box.y - grow + 'px');
+        put(el, 'width', box.width + grow * 2 + 'px');
+        put(el, 'height', box.height + grow * 2 + 'px');
       };
-      place(drop.element);
-      place(drop.glow);
-      drop.glow.style.setProperty('display', '');
       const masks = (el: HTMLElement, value: string) => {
-        el.style.setProperty('mask-image', value);
-        el.style.setProperty('-webkit-mask-image', value);
-        el.style.setProperty('mask-size', '100% 100%');
-        el.style.setProperty('-webkit-mask-size', '100% 100%');
+        put(el, 'mask-image', value);
+        put(el, '-webkit-mask-image', value);
+        put(el, 'mask-size', value ? '100% 100%' : '');
+        put(el, '-webkit-mask-size', value ? '100% 100%' : '');
       };
+      const turn = !joined && box.angle ? `rotate(${box.angle}rad)` : '';
+      place(drop.element);
+      put(drop.element, 'transform', turn);
+      put(drop.element, 'border-radius', joined ? '0' : box.radius + 'px');
+      put(drop.element, 'box-shadow', joined ? 'none' : '');
+      // while a drop is pulled (a frame of the finger is a frame to spare) it has no glow, no ring and no bend: just the glass
+      put(drop.glow, 'display', pulled ? 'none' : '');
       if(joined) {
-        style.removeProperty('transform');
         const exact = softMask(box);
-        style.setProperty('border-radius', '0');
-        style.setProperty('box-shadow', 'none');
         masks(drop.element, exact);
-        drop.glow.style.setProperty('border-radius', '0');
-        drop.glow.style.setProperty('transform', 'none');
-        // the edge of the body, cut to its shape
-        const edge = 'radial-gradient(ellipse 50% 50% at 50% 50%, transparent 30%, #000 100%)';
-        masks(drop.glow, `${exact}, ${edge}`);
-        drop.glow.style.setProperty('mask-composite', 'intersect');
-        drop.glow.style.setProperty('-webkit-mask-composite', 'source-in');
-        // the ring: the shapes a little grown, with the shapes themselves cut out of them
-        place(drop.rim);
-        drop.rim.style.setProperty('display', '');
-        masks(drop.rim, `${softMask(box, 1.2)}, ${exact}`);
+        if(!pulled) {
+          place(drop.glow);
+          put(drop.glow, 'transform', '');
+          put(drop.glow, 'border-radius', '0');
+          // the edge of the body, cut to its shape
+          masks(drop.glow, `${exact}, radial-gradient(ellipse 50% 50% at 50% 50%, transparent 30%, #000 100%)`);
+          put(drop.glow, 'mask-composite', 'intersect');
+          put(drop.glow, '-webkit-mask-composite', 'source-in');
+          // the ring: the shapes a little grown, with the shapes themselves cut out of them
+          place(drop.rim);
+          put(drop.rim, 'display', '');
+          masks(drop.rim, `${softMask(box, 1.2)}, ${exact}`);
+        } else put(drop.rim, 'display', 'none');
         drop.mapped = '';
       } else {
-        if(box.angle) style.setProperty('transform', `rotate(${box.angle}rad)`);
-        else style.removeProperty('transform');
-        style.setProperty('border-radius', box.radius + 'px');
-        style.removeProperty('box-shadow');
-        style.removeProperty('mask-image');
-        style.removeProperty('-webkit-mask-image');
-        drop.rim.style.setProperty('display', 'none');
-        drop.glow.style.setProperty('border-radius', box.radius + 'px');
-        if(box.angle) drop.glow.style.setProperty('transform', `rotate(${box.angle}rad)`);
-        else drop.glow.style.removeProperty('transform');
-        for(const prop of ['mask-image', '-webkit-mask-image', 'mask-composite', '-webkit-mask-composite']) drop.glow.style.removeProperty(prop);
+        masks(drop.element, '');
+        put(drop.rim, 'display', 'none');
+        if(!pulled) {
+          place(drop.glow);
+          put(drop.glow, 'transform', turn);
+          put(drop.glow, 'border-radius', box.radius + 'px');
+          masks(drop.glow, '');
+          put(drop.glow, 'mask-composite', '');
+          put(drop.glow, '-webkit-mask-composite', '');
+        }
       }
 
       // the bend was made for the size the drop had: while it has another (or it is joined), the drop is a plain blur
-      if(state.stretch || joined || drop.mapped !== `${box.width}x${box.height}`) setRefracting(drop, false);
+      if(pulled || joined || drop.mapped !== `${box.width}x${box.height}`) setRefracting(drop, false);
     });
 
-    if(!state.stretch && !mapTimer) mapTimer = window.setTimeout(settle, 60);
+    if(!pulled && !mapTimer) mapTimer = window.setTimeout(settle, 60);
     options.onRender?.(state);
   };
 
-  const step = (now: number) => {
-    const k = Math.min(1, (now - start) / duration);
-    const eased = 1 - Math.pow(1 - k, 3);
-    for(const key in state) {
-      if(NOT_TWEENED.has(key as keyof GooeyState)) continue;
-      state[key as keyof GooeyState] = from[key as keyof GooeyState] + (target[key as keyof GooeyState] - from[key as keyof GooeyState]) * eased;
+  // One loop moves everything (a press, a spring, the typing) and draws once a frame, however many things are moving and however
+  // often a finger reports.
+  let raf = 0;
+  let tween: {from: GooeyState, to: GooeyState, start: number, done?: () => void} | undefined;
+  let spring: {vx: number, vy: number, last: number} | undefined;
+  let typing: {from: number, to: number, start: number} | undefined;
+
+  const frame = (now: number) => {
+    raf = 0;
+    let busy = false;
+    const finished: Array<() => void> = [];
+
+    if(tween) {
+      const k = Math.min(1, (now - tween.start) / duration);
+      const eased = 1 - Math.pow(1 - k, 3);
+      for(const key in state) {
+        if(NOT_TWEENED.has(key as keyof GooeyState)) continue;
+        const name = key as keyof GooeyState;
+        state[name] = tween.from[name] + (tween.to[name] - tween.from[name]) * eased;
+      }
+
+      if(k < 1) busy = true;
+      else {
+        if(tween.done) finished.push(tween.done);
+        tween = undefined;
+      }
+    }
+
+    if(spring) {
+      // critically damped: it settles with no overshoot, so it can never swell past where it was
+      const STIFFNESS = 300, DAMPING = 2 * Math.sqrt(300);
+      const dt = Math.min(.05, Math.max(0, (now - spring.last) / 1000));
+      spring.last = now;
+      spring.vx += (-STIFFNESS * state.dragX - DAMPING * spring.vx) * dt;
+      spring.vy += (-STIFFNESS * state.dragY - DAMPING * spring.vy) * dt;
+      state.dragX += spring.vx * dt;
+      state.dragY += spring.vy * dt;
+      if(Math.hypot(state.dragX, state.dragY) < .4 && Math.hypot(spring.vx, spring.vy) < 8) {
+        state.dragX = state.dragY = state.stretch = 0;
+        spring = undefined;
+      } else busy = true;
+    }
+
+    if(typing) {
+      const k = Math.min(1, (now - typing.start) / 220);
+      state.typing = typing.from + (typing.to - typing.from) * (1 - Math.pow(1 - k, 3));
+      if(k < 1) busy = true;
+      else typing = undefined;
     }
 
     render();
-    if(k < 1) {
-      raf = requestAnimationFrame(step);
-      return;
-    }
+    finished.forEach((cb) => cb());
+    if(busy) request();
+  };
 
-    raf = 0;
-    const cb = done;
-    done = undefined;
-    cb?.();
+  const request = () => {
+    if(!raf) raf = requestAnimationFrame(frame);
   };
 
   /** runs the drops to `values` (the rest of the state goes back to rest; a pull is left to its own spring) */
   const setState = (values: Partial<GooeyState>, onDone?: () => void) => {
-    done = onDone;
-    target = {...REST, ...values};
-    from = {...state};
-    start = performance.now();
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(step);
+    tween = {from: {...state}, to: {...REST, ...values}, start: performance.now(), done: onDone};
+    request();
   };
 
   /** a finger pulls the drop `which` (1 clip, 2 field, 3 record) by (x, y) px from where it lies */
   const drag = (which: number, x: number, y: number) => {
-    cancelAnimationFrame(springRaf);
-    springRaf = 0;
+    spring = undefined;
     state.stretch = which;
     state.dragX = x;
     state.dragY = y;
-    render();
+    request();
   };
 
   /** the finger lets go: the drop springs back and settles, the neck snapping with it */
   const release = () => {
     if(!state.stretch) return;
-    cancelAnimationFrame(springRaf);
-    let vx = 0, vy = 0, last = performance.now();
-    // critically damped: it settles with no overshoot, so it can never swell past where it was
-    const STIFFNESS = 300, DAMPING = 2 * Math.sqrt(300);
-    const spring = (now: number) => {
-      const dt = Math.min(.032, (now - last) / 1000);
-      last = now;
-      vx += (-STIFFNESS * state.dragX - DAMPING * vx) * dt;
-      vy += (-STIFFNESS * state.dragY - DAMPING * vy) * dt;
-      state.dragX += vx * dt;
-      state.dragY += vy * dt;
-      if(Math.hypot(state.dragX, state.dragY) < .4 && Math.hypot(vx, vy) < 8) {
-        state.dragX = state.dragY = state.stretch = 0;
-        springRaf = 0;
-        render();
-        return;
-      }
-
-      render();
-      springRaf = requestAnimationFrame(spring);
-    };
-    springRaf = requestAnimationFrame(spring);
+    spring = {vx: 0, vy: 0, last: performance.now()};
+    request();
   };
 
   /** text is being typed (or not any more): the record drop goes, the field stretches over its place, and back */
-  let typingRaf = 0;
   const setTyping = (on: boolean) => {
-    cancelAnimationFrame(typingRaf);
-    const fromValue = state.typing, toValue = on ? 1 : 0, startedAt = performance.now();
-    if(fromValue === toValue) return;
-    const tick = (now: number) => {
-      const k = Math.min(1, (now - startedAt) / 220);
-      state.typing = fromValue + (toValue - fromValue) * (1 - Math.pow(1 - k, 3));
-      render();
-      typingRaf = k < 1 ? requestAnimationFrame(tick) : 0;
-    };
-    typingRaf = requestAnimationFrame(tick);
+    const to = on ? 1 : 0;
+    if(state.typing === to) {
+      typing = undefined;
+      return;
+    }
+
+    typing = {from: state.typing, to, start: performance.now()};
+    request();
   };
 
   /** every press and merge is gone at once (a pull has begun: the drops must not run together on the way) */
   const rest = () => {
-    cancelAnimationFrame(raf);
-    raf = 0;
-    done = undefined;
+    tween = undefined;
     for(const key in state) {
       if(!NOT_TWEENED.has(key as keyof GooeyState)) state[key as keyof GooeyState] = 0;
     }
 
-    render();
+    request();
   };
 
-  const observer = new ResizeObserver(render);
+  const observer = new ResizeObserver(request);
   observer.observe(host);
   render();
 
@@ -443,11 +461,9 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
     rest,
     /** the drops run to `values` and part again */
     pulse: (values: Partial<GooeyState>) => setState(values, () => setState({})),
-    update: render,
+    update: request,
     destroy() {
       cancelAnimationFrame(raf);
-      cancelAnimationFrame(springRaf);
-      cancelAnimationFrame(typingRaf);
       clearTimeout(mapTimer);
       drops.forEach((drop) => drop.filter?.remove());
       observer.disconnect();
