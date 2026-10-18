@@ -330,13 +330,14 @@ html.is-android.night {
   --as-pressed: rgba(255, 255, 255, .06);
   --as-glass: rgba(255, 255, 255, .06);
   --as-glass-edge: rgba(255, 255, 255, .16);
-  --as-glass-rim: rgba(255, 255, 255, .2);
-  --as-glass-sheen: rgba(255, 255, 255, .07);
-  --as-glass-after: saturate(130%);
+  --as-glass-rim: rgba(255, 255, 255, .1);
+  --as-glass-sheen: rgba(255, 255, 255, .02);
+  --as-glass-after: saturate(120%) brightness(.8);
   --as-rim-hi: rgba(255, 255, 255, .42);
   --as-rim-lo: rgba(255, 255, 255, .05);
   --as-glass-shadow: rgba(0, 0, 0, .35);
-  --tab-glass: rgba(150, 150, 160, .14);
+  --tab-glass: rgba(8, 8, 10, .64);
+  --tab-glass-edge: rgba(8, 8, 10, .36);
   --droplet-tint: 120, 170, 255;
   --as-fade-1: 97%;
   --as-fade-2: 92%;
@@ -412,11 +413,36 @@ html.is-android {
   }
 
   // one drop: the blurred, tinted backdrop with a soft shadow and a rim of light (gooeyGlass.ts sets its box)
+  // the ring along the outer edge of drops that have run together (clipped to a ring by gooeyGlass.ts)
+  .gooey-glass-rim {
+    position: absolute;
+    background: var(--as-glass-rim);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+    pointer-events: none;
+  }
+
+  // the glow: a strongly blurred and saturated backdrop under the drop, at its edge only (the dark theme)
+  .gooey-glass-glow {
+    position: absolute;
+    -webkit-backdrop-filter: blur(18px) saturate(170%) brightness(.95);
+    backdrop-filter: blur(18px) saturate(170%) brightness(.95);
+    opacity: .6;
+    mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, transparent 30%, #000 100%);
+    -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, transparent 30%, #000 100%);
+    pointer-events: none;
+  }
+
+  &:not(.night) .gooey-glass-glow {
+    display: none !important;
+  }
+
   .gooey-glass-drop {
     position: absolute;
+    // dark and clear in the middle, lighter at the edge (where the glow of what lies under the drop shows through)
     background:
       linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 55%),
-      var(--tab-glass);
+      radial-gradient(ellipse 50% 50% at 50% 50%, var(--tab-glass) 40%, var(--tab-glass-edge, var(--tab-glass)) 100%);
     -webkit-backdrop-filter: blur(1.5px) var(--as-glass-after);
     backdrop-filter: blur(1.5px) var(--as-glass-after);
     box-shadow: 0 6px 18px var(--as-glass-shadow), inset 0 0 0 1px var(--as-glass-rim);
@@ -467,7 +493,8 @@ html.is-android {
     .attach-file,
     .btn-send-container,
     .toggle-emoticons,
-    .input-message-container {
+    .input-message-container,
+    .reply-wrapper {
       touch-action: none;
     }
 
@@ -521,5 +548,251 @@ html.is-android.night .chat-input-wrapper {
     &.forward {
       color: var(--as-blue) !important;
     }
+  }
+}
+
+// ----- typing / replying, as in the design (Write Bar, Concept): the send button is a 44 x 36 pill of the accent colour
+// inside the right end of the field, 3px from its edges; the reply is a row of 48px over the message, an accent bar
+// 2 x 38, the title (15px, semibold, accent) over the subtitle (15px, grey), the cross 24px at the right
+
+html.is-android .chat-input-wrapper {
+  .new-message-wrapper.is-typing .btn-send-container {
+    width: 50px;
+  }
+
+  // typing: the field reaches the right edge, so the cross is at its end
+  &.is-typing .reply-wrapper {
+    padding-inline-end: 11px;
+  }
+
+  .new-message-wrapper.is-typing .btn-send-container .btn-send {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 36px !important;
+    border-radius: 296px !important;
+    background: #008bff !important;
+    color: #fff !important;
+  }
+
+  .new-message-wrapper.is-typing .btn-send-container .btn-send-icon-send {
+    font-size: 26px;
+    margin: 0;
+  }
+
+  .toggle-emoticons {
+    width: 36px;
+    height: 36px;
+    margin: 3px;
+  }
+
+  .reply-wrapper {
+    // it stands in the field: from its left end to its right end (the mic is beside the field until text is typed)
+    padding-inline: calc(var(--button-size) + var(--button-horizontal-margin) + 11px) calc(var(--button-size) + var(--button-horizontal-margin) + 11px);
+    transition: padding-inline var(--transition-standard-in);
+    touch-action: none;
+
+    // no arrow in front of it: the bar and the title say it is a reply
+    .reply-wrapper-content > .btn-icon:first-child {
+      display: none;
+    }
+
+    .reply-wrapper-content {
+      margin-bottom: 0;
+      align-items: center;
+    }
+
+    .reply {
+      --peer-color-rgb: 0, 139, 255 !important;
+      min-height: 38px;
+      background: none !important;
+
+      .peer-title,
+      .reply-title {
+        color: #008bff !important;
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 20px;
+        letter-spacing: -.23px;
+      }
+
+      .reply-subtitle {
+        height: 20px;
+        color: var(--secondary-text-color) !important;
+        font-size: 15px;
+        line-height: 20px;
+        letter-spacing: -.23px;
+      }
+    }
+
+    .reply-cancel {
+      flex: none;
+      width: 24px;
+      height: 24px;
+      font-size: 16px;
+      color: var(--secondary-text-color);
+    }
+  }
+}
+
+// no grey plate or ripple on the buttons of the write bar while they are pressed or open: the drop itself answers
+html.is-android .chat-input-wrapper {
+  .attach-file,
+  .toggle-emoticons,
+  .new-message-wrapper:not(.is-typing) .btn-send {
+    background-color: transparent !important;
+
+    &::before,
+    &::after {
+      background: none !important;
+    }
+
+    .c-ripple {
+      display: none !important;
+    }
+  }
+}
+
+// ----- the top bar of a chat, as in the design (Toobar, Concept): three drops of glass with no bar behind them: the back
+// button (44px), the title with the status under it (a pill, 44px high), the avatar (in a 44px drop, 3px from its edge)
+
+html.is-android .chat .topbar.sidebar-header {
+  background: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border-radius: 0 !important;
+  height: 44px !important;
+  min-height: 44px !important;
+
+  .chat-info-container {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    column-gap: 8px;
+    width: 100%;
+    height: 44px;
+    padding: 0 8px;
+    box-sizing: border-box;
+  }
+
+  .chat-info,
+  .person {
+    display: contents;
+  }
+
+  .chat-utils {
+    display: none;
+  }
+
+  // the drops themselves are the glass layer's (helpers/dropGestures.ts): these only lie on them
+  .sidebar-close-button,
+  .person .content,
+  .android-avatar-drop {
+    position: relative;
+    z-index: 1;
+    background: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .sidebar-close-button {
+    touch-action: none;
+  }
+
+  .sidebar-close-button {
+    position: static !important;
+    grid-area: 1 / 1;
+    justify-self: start;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    border-radius: 50%;
+    color: var(--as-text);
+
+    .c-ripple {
+      display: none !important;
+    }
+  }
+
+  .person .content {
+    grid-area: 1 / 2;
+    justify-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 6px 24px;
+    border-radius: 22px;
+    text-align: center;
+    overflow: hidden;
+    // topbar.ts sets the width by what the lines need, and the drop follows it (the status changes: online, last seen ...)
+    transition: width .28s cubic-bezier(.3, 1.1, .4, 1);
+
+    .top {
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 590;
+      line-height: 18px;
+      letter-spacing: -.23px;
+    }
+
+    .bottom {
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 510;
+      line-height: 14px;
+    }
+  }
+
+  // the avatar in the middle of its drop (the drop is an element of its own: topbar.ts makes it)
+  .android-avatar-drop {
+    grid-area: 1 / 3;
+    justify-self: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  }
+
+  .person .avatar {
+    grid-area: 1 / 3;
+    justify-self: center;
+    align-self: center;
+    position: relative;
+    z-index: 1;
+    width: 38px !important;
+    height: 38px !important;
+    margin: 0;
+    box-shadow: none;
+
+    // the photo is as big as the avatar (it is 40px by its own class), so it stands in the middle of the drop
+    .avatar-photo,
+    img,
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  }
+
+  // the name shows in full up to 12 characters, longer ones are cut
+  .person .content .peer-title {
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .person .content .top {
+    width: auto;
+    max-width: none;
+    overflow: visible;
+  }
+
+  .person .content .user-title {
+    max-width: none !important;
   }
 }

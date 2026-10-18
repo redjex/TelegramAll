@@ -1,4 +1,6 @@
 import type {Channel} from '@appManagers/appChatsManager';
+import {IS_ANDROID} from '@environment/userAgent';
+import createDropGestures from '@helpers/dropGestures';
 import type {AppSidebarRight} from '@components/sidebarRight';
 import type Chat from '@components/chat/chat';
 import {RIGHT_COLUMN_ACTIVE_CLASSNAME} from '@components/sidebarRight';
@@ -239,6 +241,86 @@ export default class ChatTopbar {
     this.chatInfoContainer.append(this.btnBack, this.chatInfo);
     if(!this.chat.isPreview) this.chatInfoContainer.append(this.chatUtils);
     this.container.append(this.chatInfoContainer);
+
+    // Android: the back button, the title and the avatar are three drops of liquid glass (see _androidInsets.scss)
+    if(IS_ANDROID && !this.chat.isPreview) {
+      // the avatar sits in a drop of its own (44px), its photo 3px in from the edge
+      const avatarDrop = document.createElement('div');
+      avatarDrop.className = 'android-avatar-drop';
+      this.chatInfoContainer.append(avatarDrop);
+      const stops: Array<() => void> = [];
+      let titleContent: HTMLElement;
+      const place = (el: HTMLElement | undefined, radius: number) => el ?
+        {x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight, radius} :
+        {x: 0, y: 0, width: 0, height: 0, radius: 0};
+      // The three drops are made by the glass layer (helpers/dropGestures.ts): what is here only lies on them. Their places
+      // are read from the layout (which a pull does not move).
+      const gestures = createDropGestures({
+        host: this.chatInfoContainer,
+        root: this.chatInfoContainer,
+        base: () => [place(this.btnBack, 22), place(titleContent, 22), place(avatarDrop, 22)],
+        pick: (target) => target.closest('.sidebar-close-button') ? 1 : target.closest('.person .content') ? 2 :
+          target.closest('.person .avatar, .android-avatar-drop') ? 3 : 0,
+        carried: (which) => (which === 1 ? [this.btnBack] : which === 2 ? [titleContent] : [this.chatInfo.querySelector<HTMLElement>('.person .avatar')]).filter(Boolean),
+        // the title is a wide drop: it is stretched as a body, not as a bar
+        wide: (which) => which === 2,
+        // the top bar is stretched less than the write bar
+        pull: {share: .025, limit: 14},
+        unit: () => 44
+      });
+      stops.push(() => gestures.destroy());
+      // the title is made once the peer is known: its drop is made when it shows up
+      let titleStop: () => void;
+      const observer = new MutationObserver(() => {
+        const content = this.chatInfo.querySelector<HTMLElement>('.content');
+        if(!content || titleStop) return;
+        titleContent = content;
+        titleStop = () => {};
+        observer.disconnect();
+        // its width changes smoothly: the drop follows
+        const followSize = new ResizeObserver(() => gestures.update());
+        followSize.observe(content);
+        stops.push(() => followSize.disconnect());
+
+        // the drop is as wide as its two lines need, and grows or shrinks smoothly when they change (online, last seen ...)
+        let first = true;
+        const fit = () => {
+          const lines = Array.from(content.children) as HTMLElement[];
+          const need = Math.ceil(Math.max(...lines.map((line) => line.scrollWidth || line.offsetWidth))) + 48;
+          if(!need || need === parseFloat(content.style.width)) return;
+          if(first) {
+            // the first time it is there at once
+            content.style.transition = 'none';
+            content.style.width = need + 'px';
+            void content.offsetWidth;
+            content.style.removeProperty('transition');
+            first = false;
+            return;
+          }
+
+          content.style.width = need + 'px';
+        };
+        const sizeObserver = new ResizeObserver(fit);
+        const watch = () => {
+          sizeObserver.disconnect();
+          Array.from(content.children).forEach((line) => sizeObserver.observe(line));
+          fit();
+        };
+        // the lines themselves are replaced as the peer changes: watch them again then
+        const lineObserver = new MutationObserver(watch);
+        lineObserver.observe(content, {childList: true, subtree: true, characterData: true});
+        watch();
+        stops.push(() => {
+          sizeObserver.disconnect();
+          lineObserver.disconnect();
+        });
+      });
+      observer.observe(this.chatInfo, {childList: true, subtree: true});
+      this.listenerSetter && (this.chat.destroyMiddlewareHelper.onDestroy(() => {
+        observer.disconnect();
+        stops.forEach((stop) => stop());
+      }));
+    }
 
     this.floatingPlatesWrapper = document.createElement('div');
     this.floatingPlatesWrapper.classList.add('topbar-floating-plates', 'hide');

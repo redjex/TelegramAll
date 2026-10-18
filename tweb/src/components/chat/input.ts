@@ -47,7 +47,8 @@ import showPinMessagePopup from '@components/popups/unpinMessage';
 import tsNow from '@helpers/tsNow';
 import appNavigationController, {NavigationItem} from '@components/appNavigationController';
 import {IS_ANDROID, IS_MOBILE, IS_MOBILE_SAFARI} from '@environment/userAgent';
-import createGooeyGlass, {GooeyState} from '@helpers/gooeyGlass';
+import createGooeyGlass, {GooeyShape, GooeyState} from '@helpers/gooeyGlass';
+import {pullShapes, stretchScales} from '@helpers/dropGestures';
 import I18n, {FormatterArguments, i18n, join, LangPackKey} from '@lib/langPack';
 import {
   AttachedMediaType,
@@ -263,17 +264,8 @@ type ChatInputAttachMenuButton = ButtonMenuItemOptionsVerifiable & {
 
 export type ChatInputReplyTo = Pick<MessageSendingParams, 'replyToMsgId' | 'replyToQuote' | 'replyToPollOption' | 'replyToStoryId' | 'replyToPeerId' | 'replyToMonoforumPeerId'>;
 
-/** how thin (and, for the wide field, narrow) a drop gets while it is pulled `state.dragX/dragY` px: the volume stays */
-function stretchScales(state: GooeyState, height: number) {
-  const length = Math.hypot(state.dragX, state.dragY);
-  const scale = 1 / Math.sqrt(1 + length / height * .8);
-  // the wide field draws in at the sides as well, so it does not run over the clip and the mic
-  return {scale, scaleX: state.stretch === 2 ? Math.pow(scale, 1.25) : scale};
-}
-
 const CLASS_NAME = 'chat-input';
-// Android shows the sticker icon where the other platforms have the smile
-const EMOTICONS_ICON: Icon = IS_ANDROID ? 'stickers' : 'smile';
+const EMOTICONS_ICON: Icon = 'smile';
 const PEER_EXCEPTIONS = new Set<ChatType>([ChatType.Scheduled, ChatType.Stories, ChatType.Saved, ChatType.Welcome]);
 
 type WatchDownloadProgressArgs<T> = {
@@ -403,6 +395,9 @@ export default class ChatInput {
   /** layer 229: a bot is streaming text into this chat/topic and lets us stop it */
   private streamStoppable = false;
   private sendBtnIcon: ChatSendBtnIcon;
+  // Android: text is being typed (the send button is in the field, the mic is gone)
+  private androidTyping = false;
+  private setAndroidTyping?: (on: boolean) => void;
 
   private replyKeyboard: ReplyKeyboard;
 
@@ -3463,30 +3458,38 @@ export default class ChatInput {
   private mountAndroidGlass() {
     const row = this.newMessageWrapper;
     const send = this.btnSendContainer;
+    // the size of a drop: the send button is wider while typing, so it is the clip that gives it
+    const unit = () => this.attachMenu?.offsetWidth || 42;
     // what lies on a pulled drop (the clip, the text and the stickers button, the mic) goes with it: it stays in the
     // middle of the body, stretched along the pull and squeezed across it
-    const carried: HTMLElement[][] = [
-      [this.attachMenu],
-      [row.querySelector('.input-message-container'), this.btnToggleEmoticons],
-      [send]
-    ].map((list) => list.filter(Boolean) as HTMLElement[]);
+    const carriedBy = (which: number) => (which === 1 ? [this.attachMenu] :
+      which === 2 ? [row.querySelector('.input-message-container'), this.btnToggleEmoticons, this.replyElements?.container] :
+        [send]).filter(Boolean) as HTMLElement[];
     let carrying = 0;
     let origins: string[] = [];
     const carry = (state: GooeyState) => {
-      if(carrying && carrying !== state.stretch) carried[carrying - 1].forEach((el) => el.style.removeProperty('transform'));
+      if(carrying && carrying !== state.stretch) carriedBy(carrying).forEach((el) => el.style.removeProperty('transform'));
       if(state.stretch && carrying !== state.stretch) {
         // the middle of the drop, in each element's own coordinates: what lies on it is squeezed and moved about that point
-        const size = send.offsetWidth, width = row.offsetWidth, height = row.offsetHeight;
-        const center = [{x: size / 2, y: height - size / 2}, {x: width / 2, y: height / 2}, {x: width - size / 2, y: height - size / 2}][state.stretch - 1];
-        origins = carried[state.stretch - 1].map((el) => `${center.x - el.offsetLeft}px ${center.y - el.offsetTop}px`);
+        const size = unit(), box = row.getBoundingClientRect();
+        const helper = this.replyElements?.container?.offsetHeight || 0;
+        const center = [
+          {x: box.left + size / 2, y: box.bottom - size / 2},
+          {x: box.left + box.width / 2, y: box.top + (box.height - helper) / 2},
+          {x: box.right - size / 2, y: box.bottom - size / 2}
+        ][state.stretch - 1];
+        origins = carriedBy(state.stretch).map((el) => {
+          const rect = el.getBoundingClientRect();
+          return `${center.x - rect.left}px ${center.y - rect.top}px`;
+        });
       }
 
       carrying = state.stretch;
       if(!carrying) return;
-      const {scale, scaleX} = stretchScales(state, send.offsetHeight);
+      const {scale, scaleX} = stretchScales(state, unit(), state.stretch === 2);
       // inside the body: it narrows and thins as the body does, and is in the middle of it
       const value = `translate(${state.dragX / 2}px, ${state.dragY / 2}px) scale(${scaleX}, ${scale})`;
-      carried[carrying - 1].forEach((el, i) => {
+      carriedBy(carrying).forEach((el, i) => {
         el.style.setProperty('transform-origin', origins[i]);
         el.style.setProperty('transform', value);
       });
@@ -3495,34 +3498,27 @@ export default class ChatInput {
       host: row,
       onRender: carry,
       getShapes: (width, height, state) => {
-        const size = send.offsetWidth;
+        const size = unit();
         const gap = parseFloat(getComputedStyle(row).columnGap) || 8;
         const closeLeft = (size / 2 + gap) * state.left;
         const closeRight = (size / 2 + gap) * state.right;
         const clip = state.swellClip * 3, field = state.swellField * 3, record = state.swellRecord * 3;
-        const shapes = [
-          {x: -clip, y: height - size - clip, width: size + clip * 2, height: size + clip * 2, radius: size / 2 + clip},
-          {x: size + gap - closeLeft, y: -field, width: width - (size + gap) * 2 + closeLeft + closeRight, height: height + field * 2, radius: size / 2 + field},
-          {x: width - size - record, y: height - size - record, width: size + record * 2, height: size + record * 2, radius: size / 2 + record}
+        // a reply (or an edit) stands inside the field, over its top: the field's drop is as much taller
+        const helper = this.replyElements?.container?.offsetHeight || 0;
+        // typing: the record drop shrinks away and the field takes its place, out to the right edge
+        const room = (size + gap) * state.typing;
+        const gone = 1 - state.typing;
+        const shapes: GooeyShape[] = [
+          {x: -clip, y: height - size - clip, width: size + clip * 2, height: size + clip * 2, radius: size / 2 + clip, source: 1},
+          {x: size + gap - closeLeft, y: -field - helper, width: width - (size + gap) * 2 + closeLeft + closeRight + room, height: height + field * 2 + helper, radius: size / 2 + field + Math.min(helper, 6), source: 2}
         ];
+        const recordSize = size * gone + record * 2;
+        if(gone > .04) shapes.push({x: width - size / 2 - recordSize / 2, y: height - size / 2 - recordSize / 2, width: recordSize, height: recordSize, radius: recordSize / 2, source: 3});
         if(state.stretch) {
-          // a drop pulled by a finger stays one body: a chain of copies from where it lies to where it is pulled, all as
-          // thin as the stretch makes it (the volume stays), so the goo gives one stretched capsule, never two balls
+          // a drop pulled by a finger is pulled by its edge (helpers/dropGestures.ts)
           const home = shapes[state.stretch - 1];
-          const length = Math.hypot(state.dragX, state.dragY);
-          const {scale, scaleX} = stretchScales(state, home.height);
-          const steps = Math.max(1, Math.ceil(length / (home.height / 4)));
           shapes.splice(state.stretch - 1, 1);
-          for(let i = 0; i <= steps; ++i) {
-            const t = i / steps;
-            shapes.push({
-              x: home.x + state.dragX * t + home.width * (1 - scaleX) / 2,
-              y: home.y + state.dragY * t + home.height * (1 - scale) / 2,
-              width: home.width * scaleX,
-              height: home.height * scale,
-              radius: home.radius * scale
-            });
-          }
+          shapes.push(...pullShapes(home, state, state.stretch === 2));
         }
 
         return shapes;
@@ -3531,23 +3527,37 @@ export default class ChatInput {
 
     // a finger held on a drop enlarges it and closes the gap on its side(s); a tap does the same and lets go;
     // pulled, the drop stretches after the finger and springs back
-    const PEAK = .2, MIN_HOLD = 140, DRAG_START = 6, DRAG_LIMIT = 28;
+    const PEAK = .2, MIN_HOLD = 140, HOLD_DELAY = 110, DRAG_START = 6, DRAG_LIMIT = 28;
     let held = false;
     let pulling = 0;
     let dragged = false;
     let origin: {x: number, y: number};
     let pressedAt = 0;
     let release: number;
+    // The press swells the drop and runs it into its neighbour, but only once the finger has stayed a moment: a finger that
+    // goes straight into a pull (or a swipe past) must not make the drops run together and fall apart again.
+    let hold: (() => void) | undefined;
+    let holdTimer = 0;
+    const playHold = () => {
+      clearTimeout(holdTimer);
+      holdTimer = 0;
+      hold?.();
+      hold = undefined;
+    };
     const onDown = (e: PointerEvent) => {
       const target = e.target as HTMLElement;
+      // the cross of the reply is a button of its own
+      if(target.closest('.reply-cancel')) return;
+      const typing = row.classList.contains('is-typing');
       if(target.closest('.attach-file')) {
-        gooey.setState({left: PEAK, swellClip: 1});
+        hold = () => gooey.setState({left: PEAK, swellClip: 1});
         pulling = 1;
       } else if(target.closest('.btn-send-container')) {
-        gooey.setState({right: PEAK, swellRecord: 1});
-        pulling = 3;
-      } else if(target.closest('.input-message-container, .toggle-emoticons')) {
-        gooey.setState({left: PEAK, right: PEAK, swellField: 1});
+        // while typing it is the send button inside the field, and not a drop of its own
+        hold = typing ? undefined : () => gooey.setState({right: PEAK, swellRecord: 1});
+        pulling = typing ? 0 : 3;
+      } else if(target.closest('.input-message-container, .toggle-emoticons, .reply-wrapper')) {
+        hold = () => gooey.setState({left: PEAK, right: PEAK, swellField: 1});
         pulling = 2;
       } else return;
       held = true;
@@ -3555,6 +3565,8 @@ export default class ChatInput {
       origin = {x: e.clientX, y: e.clientY};
       pressedAt = performance.now();
       clearTimeout(release);
+      clearTimeout(holdTimer);
+      holdTimer = window.setTimeout(playHold, HOLD_DELAY);
     };
     const onMove = (e: PointerEvent) => {
       if(!held || !pulling) return;
@@ -3567,14 +3579,24 @@ export default class ChatInput {
       const dx = e.clientX - origin.x, dy = e.clientY - origin.y;
       const distance = Math.hypot(dx, dy);
       if(!dragged && distance < DRAG_START) return;
-      if(!dragged) gooey.setState({});
+      if(!dragged) {
+        clearTimeout(holdTimer);
+        hold = undefined;
+        gooey.rest();
+      }
       dragged = true;
-      // it takes effort: the drop gives a sixtieth of what the finger moves, and the further it goes the harder it gets
-      const stretched = DRAG_LIMIT * Math.tanh(distance * .016 / DRAG_LIMIT);
+      // it takes effort: the drop gives a twentieth of what the finger moves, and the further it goes the harder it gets
+      const stretched = DRAG_LIMIT * Math.tanh(distance * .05 / DRAG_LIMIT);
       gooey.drag(pulling, dx / distance * stretched, dy / distance * stretched);
     };
     const onUp = () => {
       if(!held) return;
+      // a tap shorter than the delay still plays the press
+      if(hold) {
+        playHold();
+        pressedAt = performance.now();
+      }
+
       clearTimeout(release);
       gooey.release();
       release = window.setTimeout(() => {
@@ -3582,12 +3604,12 @@ export default class ChatInput {
         gooey.setState({});
       }, Math.max(0, MIN_HOLD - (performance.now() - pressedAt)));
     };
-    this.listenerSetter.add(row)('pointerdown', onDown);
+    this.listenerSetter.add(this.rowsWrapper)('pointerdown', onDown);
     this.listenerSetter.add(document)('pointermove', onMove);
     this.listenerSetter.add(document)('pointerup', onUp);
     this.listenerSetter.add(document)('pointercancel', onUp);
     // a pull that ended on a button is not a press of it
-    this.listenerSetter.add(row)('click', (e) => {
+    this.listenerSetter.add(this.rowsWrapper)('click', (e) => {
       if(dragged) {
         e.stopPropagation();
         e.preventDefault();
@@ -3598,8 +3620,18 @@ export default class ChatInput {
     this.listenerSetter.add(row)('focusin', (e) => {
       if(!held && (e.target as HTMLElement).closest('.input-message-input')) gooey.pulse({left: PEAK, right: PEAK});
     });
+    this.setAndroidTyping = (on) => {
+      row.classList.toggle('is-typing', on);
+      this.rowsWrapper.classList.toggle('is-typing', on);
+      gooey.setTyping(on);
+    };
+    this.setAndroidTyping(this.androidTyping);
+    // the reply opens and closes by its height: the drop follows
+    const helperObserver = this.replyElements?.container ? new ResizeObserver(() => gooey.update()) : undefined;
+    if(helperObserver) helperObserver.observe(this.replyElements.container);
     this.chat.destroyMiddlewareHelper.onDestroy(() => {
       clearTimeout(release);
+      helperObserver?.disconnect();
       gooey.destroy();
     });
   }
@@ -4795,6 +4827,11 @@ export default class ChatInput {
     else icon = this.recordingController.getActiveRecordingMediaType() === 'video' ? 'record-video' : 'record';
 
     this.sendBtnIcon = icon;
+    if(IS_ANDROID) {
+      this.androidTyping = !this.recording && (icon === 'send' || icon === 'edit' || icon === 'schedule');
+      this.setAndroidTyping?.(this.androidTyping);
+    }
+
     ['send', 'record', 'record-video', 'edit', 'schedule', 'forward', 'stop'].forEach((i) => {
       this.btnSend.classList.toggle(i, icon === i);
     });
