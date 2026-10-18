@@ -1,5 +1,3 @@
-import {simulateClickEvent} from '@helpers/dom/clickEvent';
-
 /**
  * The QR code screen of the Android app goes down under a finger: a drag that starts on it and runs down
  * (more than sideways) pulls the screen along (`--qr-drag`), and letting go past a fifth of its height, or
@@ -60,9 +58,10 @@ export default function attachAndroidQrSwipe(sentinel: HTMLElement) {
     const flick = velocity > .6 && dy > 30;
     container.style.removeProperty('--qr-drag');
     if(far || flick) {
-      // down it goes: through the close button, so that everything the popup does on closing happens
-      const close = popup.querySelector<HTMLElement>('.popup-close');
-      if(close) simulateClickEvent(close);
+      // down it goes: through the close button, so that everything the popup does on closing happens.
+      // A plain click: on a touch screen `simulateClickEvent` sends a touchend, which this button
+      // (a solid onClick) never hears.
+      popup.querySelector<HTMLElement>('.popup-close')?.click();
     }
   };
 
