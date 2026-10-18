@@ -1,3 +1,4 @@
+import {IS_ANDROID} from '@environment/userAgent';
 import type {MyDialogFilter} from '@lib/storages/filters';
 import type {Dialog, ForumTopic, MyMessage, RequestHistoryOptions, SavedDialog} from '@appManagers/appMessagesManager';
 import type {MyDocument} from '@appManagers/appDocsManager';
@@ -1232,11 +1233,15 @@ export class AppDialogsManager {
   private _renderStories() {
     this.chatsContainer.parentElement.parentElement.firstElementChild.after(this.storiesListContainer);
     return StoriesList({
-      foldInto: document.querySelector('.item-main .input-search input'),
+      // on Android the avatars fold into the title row, left of the title
+      foldInto: document.querySelector(IS_ANDROID ? '.item-main .android-stories-anchor' : '.item-main .input-search input'),
       setScrolledOn: this.chatsContainer,
       getScrollable: () => this.xd.scrollable.container,
-      listenWheelOn: this.bottomPart,
-      offsetX: -1,
+      // on Android the pull down works from anywhere on the screen of the list, the title row and the
+      // search pill included
+      listenWheelOn: IS_ANDROID ? document.querySelector<HTMLElement>('.item-main') : this.bottomPart,
+      // the stack of folded avatars goes to the left margin, where the anchor begins, not where it ends
+      offsetX: IS_ANDROID ? -78 : -1,
       resizeCallback: (callback) => {
         this.resizeStoriesList = callback;
       },

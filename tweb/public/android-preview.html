@@ -72,6 +72,13 @@
       phone.style.width = (+w + 20) + 'px';
       phone.style.height = 'min(' + (+h + 20) + 'px, calc(100vh - 90px))';
     };
+    // a full-screen sheet in the app takes the strip away (the class on the app's root says so)
+    const home = document.querySelector('.home');
+    app.addEventListener('load', () => {
+      new MutationObserver(() => {
+        home.style.display = app.contentDocument.documentElement.classList.contains('android-nav-hidden') ? 'none' : '';
+      }).observe(app.contentDocument.documentElement, {attributes: true, attributeFilter: ['class']});
+    });
     const tick = () => {
       const d = new Date();
       document.getElementById('clock').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');

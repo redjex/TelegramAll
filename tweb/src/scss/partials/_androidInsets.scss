@@ -58,6 +58,206 @@ html.is-android {
   }
 }
 
+// ----- the chat list header: title and menu in the first row, stories under it (they fold into that row),
+// the search pill under them
+
+html.is-android .item-main {
+  position: relative;
+  // the first row: 56dp below the status bar
+  --h1: calc(56px + var(--sat));
+  // how far the stories have folded (0 open, 92px folded): set by the stories list as it moves
+  --stories-scrolled: 92px;
+  --stories-folded: 1;
+
+  .main-search-sidebar-header {
+    box-sizing: border-box;
+    height: var(--h1);
+    min-height: var(--h1);
+    // 16px from the left edge is the margin of everything in the list screen
+    padding: var(--sat) 56px 0 16px;
+    justify-content: flex-start;
+    background: transparent;
+  }
+
+  .sidebar-header-search-trigger {
+    display: none;
+  }
+
+  // The folded avatars end at the right edge of the anchor. It always has its width, so that the place
+  // the stories fold to is the same from the first frame; with no stories the title just steps back over it
+  // ("My Story" is not a story to make room for).
+  .android-stories-anchor {
+    flex: none;
+    width: 68px;
+    height: 56px;
+  }
+
+  &:not(:has(.stories-list [role="button"]:not([data-my-story]))) .android-chats-title {
+    margin-inline-start: -68px;
+  }
+
+  &:has(.stories-list [role="button"]:not([data-my-story])) {
+    // beside the folded avatars it shows while they are folded and fades out as the stories open
+    .android-chats-title {
+      // it stands right after the stack, however many avatars it has (each takes 16px of it)
+      margin-inline-start: calc(16px * (var(--stack-count, 2) - 1) - 24px);
+      // it goes to the middle of the stories as they spread (androidChatsHeader.ts measures how far), and
+      // is gone before they are all out
+      // It dissolves as it goes (fades, shrinks, blurs) and is gone before the avatars reach it, so it is
+      // never just covered by them; it stands above the row of stories while it lasts.
+      position: relative;
+      z-index: 5;
+      pointer-events: none;
+      opacity: max(0, calc(1 - (1 - var(--stories-folded, 1)) * 2.4));
+      // right to the middle of the stories and down to the middle of their row (55px below the title row)
+      transform: translate(calc((1 - var(--stories-folded, 1)) * var(--title-shift, 150px)), calc((1 - var(--stories-folded, 1)) * 55px)) scale(calc(1 - (1 - var(--stories-folded, 1)) * .3));
+      filter: blur(calc((1 - var(--stories-folded, 1)) * 10px));
+    }
+
+    .android-chats-title-open {
+      display: block;
+      opacity: calc(1 - var(--stories-folded, 1));
+    }
+  }
+
+  // over the stories: hidden until there are some
+  .android-chats-title-open {
+    display: none;
+    position: absolute;
+    // on the level of the three dots and of the title beside the folded avatars
+    top: var(--sat);
+    left: 16px;
+    right: 56px;
+    overflow: hidden;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 56px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--primary-text-color);
+    pointer-events: none;
+  }
+
+  .android-chats-title {
+    // as wide as its word: the shift to the middle of the stories is measured from it
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 56px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--primary-text-color);
+  }
+
+  // three dots at the right end of the row instead of the burger
+  .left-sidebar-burger {
+    position: absolute;
+    z-index: 3;
+    top: var(--sat);
+    right: 6px;
+    width: 48px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+  }
+
+  .animated-menu-icon {
+    display: none;
+  }
+
+  .sidebar-tools-button {
+    // centred in the 48 x 56 box of the row
+    top: 6px;
+    left: 2px;
+    width: 44px;
+    height: 44px;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--primary-text-color);
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='5' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='12' cy='19' r='2'/%3E%3C/svg%3E") center / 24px no-repeat;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='5' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='12' cy='19' r='2'/%3E%3C/svg%3E") center / 24px no-repeat;
+    }
+  }
+
+  // the search pill, under the stories; it rides up as they fold
+  .input-search {
+    position: absolute;
+    z-index: 2;
+    left: 16px;
+    right: 16px;
+    top: calc(var(--h1) + 6px);
+    // it goes down with the list as the stories open and comes back as they fold
+    // (open, the stories stand 10px closer to the title row)
+    transform: translateY(calc(92px - var(--stories-scrolled) - (1 - var(--stories-folded)) * 10px));
+    width: auto;
+    height: 44px;
+    margin: 0;
+  }
+
+
+  // searching: the field comes up into the title row, the arrow back takes the place of the dots
+  &.is-search-active {
+    .android-chats-title,
+    .android-chats-title-open,
+    .sidebar-tools-button {
+      display: none !important;
+    }
+
+    .input-search {
+      top: calc(var(--sat) + 6px);
+      left: 56px;
+    }
+
+    .left-sidebar-burger {
+      right: auto;
+      left: 6px;
+    }
+
+    // the burger icon turns into the arrow back while searching
+    .animated-menu-icon {
+      display: block;
+    }
+  }
+}
+
+// the pill and the title follow the stories smoothly (the body carries the animation level, so it stays
+// in the selector after the root class)
+html.is-android body.animation-level-2 .item-main {
+  .input-search {
+    transition: transform var(--transition-standard-in);
+  }
+
+  .android-chats-title,
+  .android-chats-title-open {
+    transition: opacity var(--transition-standard-in), transform var(--transition-standard-in), filter var(--transition-standard-in);
+  }
+}
+
+// while a finger pulls the stories open or shut everything follows it with no delay
+html.is-android body .item-main.stories-dragging {
+  .stories-list *,
+  .input-search,
+  .android-chats-title,
+  .android-chats-title-open,
+  .connection-status-bottom {
+    transition: none !important;
+  }
+}
+
+// the list starts under the pill (an id in the rule it overrides makes this one need the id as well)
+html.is-android #column-left .item-main .connection-status-bottom {
+  --offset-top: calc(150px - (1 - var(--stories-folded)) * 10px);
+  // as tall as it is when the stories are folded: opening them slides the list down, nothing resizes
+  height: calc(100% - 58px);
+}
+
 html.is-android.android-tabbar-on {
   --tb: 72px;
 }
@@ -111,4 +311,59 @@ html.is-android.night {
   --as-fade-3: 72%;
   --as-fade-4: 40%;
   --as-fade-5: 12%;
+}
+
+// ----- the QR code scanner (components/popups/androidQrScanner.ts): the camera over the whole screen
+
+.android-qr-scanner {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  background: #000;
+
+  video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(70vw, 280px);
+    aspect-ratio: 1;
+    transform: translate(-50%, -60%);
+    border: 3px solid #fff;
+    border-radius: 28px;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .45);
+  }
+
+  &-close {
+    position: absolute;
+    top: calc(var(--sat) + 8px);
+    left: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font-size: 24px;
+  }
+
+  &-hint {
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: calc(var(--sab) + 48px);
+    color: #fff;
+    text-align: center;
+    font-size: 15px;
+  }
 }

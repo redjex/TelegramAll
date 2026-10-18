@@ -109,6 +109,11 @@
     }
   }
 
+  // Android: the first item of the row, the own avatar with a plus
+  &.MyStoryItem {
+    --background-color: transparent;
+  }
+
   &Container {
     --progress: 0;
     position: relative;
@@ -165,5 +170,28 @@
 
   @include animation-level-global(1) {
     transition: opacity .15s ease, visibility 0s;
+  }
+}
+
+.MyStoryAvatar {
+  position: relative;
+  align-self: center;
+  width: 54px;
+  height: 54px;
+
+  &::after {
+    content: "";
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--surface-color);
+    border-radius: 50%;
+    background:
+      linear-gradient(#fff, #fff) center / 8px 2px no-repeat,
+      linear-gradient(#fff, #fff) center / 2px 8px no-repeat,
+      var(--as-blue, var(--primary-color));
   }
 }

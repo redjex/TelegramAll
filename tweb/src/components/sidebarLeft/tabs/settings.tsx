@@ -22,6 +22,7 @@ import {IS_ANDROID} from '@environment/userAgent';
 import appImManager from '@lib/appImManager';
 import {AppPowerSavingTab} from '@components/solidJsTabs/tabs';
 import applyLiquidGlass from '@helpers/liquidGlass';
+import wrapPeerTitle from '@components/wrappers/peerTitle';
 import AndroidSettings, {AndroidSettingsCard} from '@components/sidebarLeft/tabs/androidSettings';
 import {SliderSuperTabConstructable, SliderSuperTabEventable} from '@components/sliderTab';
 import {AccountAuthorizations, Authorization, ConnectedBot} from '@layer';
@@ -34,7 +35,7 @@ import useStars, {hasTonTransactions} from '@stores/stars';
 import showStarsPopup from '@components/popups/stars';
 import {renderPeerProfile} from '@components/peerProfile';
 import SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
-import showMyQrCodePopup from '@components/popups/myQrCode';
+import showMyQrCodePopup, {warmAndroidQrThemes} from '@components/popups/myQrCode';
 import showSendGiftPicker from '@components/popups/sendGiftPicker';
 import {formatNanoton} from '@helpers/paymentsWrapCurrencyAmount';
 import showLogOutPopup from '@components/popups/logOut';
@@ -112,7 +113,9 @@ const Settings = () => {
     }, {
       icon: 'qr',
       text: 'QRCode.Title',
-      onClick: () => showMyQrCodePopup()
+      onClick: () => showMyQrCodePopup(),
+      // on Android it is the glass button at the top left
+      verify: () => !IS_ANDROID
     }, {
       icon: 'logout',
       text: 'EditAccount.Logout',
@@ -128,7 +131,22 @@ const Settings = () => {
   const [searchQuery, setSearchQuery] = createSignal<string>(undefined);
   const isSearching = () => searchQuery() !== undefined;
 
+  // puts the name in the toolbar where the name on the page is, or at the place of the title if the page
+  // name has gone up past it
+  const placeTitle = () => {
+    const nameOnPage = tab.container.querySelector<HTMLElement>('[class*="_name_"]');
+    if(!nameOnPage || !tab.title.isConnected) return;
+    const header = tab.title.parentElement.getBoundingClientRect();
+    const page = nameOnPage.getBoundingClientRect();
+    const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
+    const titleCenter = header.top + sat + 28;
+    const shift = Math.max(0, page.top + page.height / 2 - titleCenter);
+    tab.title.style.setProperty('--as-title-y', Math.round(shift * 10) / 10 + 'px');
+  };
+
   const androidActions = document.createElement('div');
+  const androidQrBtn = ButtonIcon('qr', {ariaLabel: 'QRCode.Title'});
+  attachClickEvent(androidQrBtn, () => showMyQrCodePopup(), {listenerSetter: tab.listenerSetter});
   let stopGlass: Array<() => void> = [];
   const mainLayer = document.createElement('div');
   mainLayer.classList.add('transition-item', 'settings-layer');
@@ -227,12 +245,32 @@ const Settings = () => {
       androidActions.classList.add('android-header-actions');
       androidActions.append(searchBtn, btnMenu);
       tab.header.append(androidActions);
+      // the QR code button leaves the menu for the left corner of the toolbar (where the arrow back is not shown)
+      // The name of the user is the title of the toolbar: at rest it stands where the name stands on the
+      // page, and rises with it until it comes to the place of the title, where it stays. It is one
+      // element all the way, so there is never a second copy of it.
+      wrapPeerTitle({peerId: rootScope.myId}).then((name) => {
+        tab.title.replaceChildren(name);
+        placeTitle();
+      });
+      for(const delay of [0, 100, 400, 1000]) setTimeout(placeTitle, delay);
+      // the strip of themes of the QR screen is built while the page is looked at, not on opening
+      setTimeout(warmAndroidQrThemes, 1500);
+      androidQrBtn.classList.add('android-qr-button');
+      tab.header.prepend(androidQrBtn);
       const backBubble = tab.header.querySelector<HTMLElement>('.sidebar-close-button');
-      stopGlass = [backBubble, androidActions].filter(Boolean).map((bubble) => applyLiquidGlass(bubble, {after: 'blur(7px) var(--as-glass-after)'}));
+      stopGlass = [backBubble, androidQrBtn, androidActions].filter(Boolean).map((bubble) => applyLiquidGlass(bubble, {after: 'blur(7px) var(--as-glass-after)'}));
       tab.content.addEventListener('scroll', (e) => {
         const target = e.target as HTMLElement;
         if(target.classList?.contains('scrollable')) {
           tab.container.classList.toggle('as-scrolled', target.scrollTop > 130);
+          // how far the avatar and the line under the name have collapsed, 0 to 1: they hold still while
+          // there is room, and go as they come up to the toolbar
+          const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+          tab.container.style.setProperty('--as-pa', String(clamp01((target.scrollTop - 60) / 90)));
+          // the line under the name goes first; the avatar starts to shrink only after it has started to go
+          tab.container.style.setProperty('--as-pi', String(clamp01((target.scrollTop - 45) / 65)));
+          placeTitle();
         }
       }, {capture: true, passive: true});
     } else {
@@ -262,7 +300,7 @@ const Settings = () => {
     stopGlass.forEach((stop) => stop());
     // the header outlives the component (it belongs to the tab), so take the
     // buttons back out — otherwise a hot reload leaves a second set behind
-    for(const button of [searchBtn, btnMenu, androidActions]) button.remove();
+    for(const button of [searchBtn, btnMenu, androidActions, androidQrBtn]) button.remove();
     tab.container.append(tab.header, tab.content);
     mainLayer.remove();
     searchLayer.remove();
@@ -503,7 +541,6 @@ const Settings = () => {
       <Show when={IS_ANDROID}>
         <AndroidSettings
           cards={androidCards()}
-          onEditProfile={() => tab.slider.createTab(AppEditProfileTab).open(getEditProfileInitArgs(true))}
         />
       </Show>
       <Show when={!IS_ANDROID}>
