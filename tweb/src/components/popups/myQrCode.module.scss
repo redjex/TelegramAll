@@ -97,6 +97,8 @@
       // nothing behind the screen shows through, while the wallpaper repaints or fades in
       background: var(--surface-color);
       box-shadow: none;
+      // a finger moving down is ours (the swipe that closes the screen), not the browser's scroll
+      touch-action: pan-x;
       transform: translate3d(0, 100%, 0) !important;
       transition: transform .38s cubic-bezier(.22, 1, .36, 1) !important;
     }

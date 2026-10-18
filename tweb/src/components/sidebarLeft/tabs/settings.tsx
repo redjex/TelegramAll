@@ -35,7 +35,7 @@ import useStars, {hasTonTransactions} from '@stores/stars';
 import showStarsPopup from '@components/popups/stars';
 import {renderPeerProfile} from '@components/peerProfile';
 import SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
-import showMyQrCodePopup from '@components/popups/myQrCode';
+import showMyQrCodePopup, {warmAndroidQrThemes} from '@components/popups/myQrCode';
 import showSendGiftPicker from '@components/popups/sendGiftPicker';
 import {formatNanoton} from '@helpers/paymentsWrapCurrencyAmount';
 import showLogOutPopup from '@components/popups/logOut';
@@ -254,6 +254,8 @@ const Settings = () => {
         placeTitle();
       });
       for(const delay of [0, 100, 400, 1000]) setTimeout(placeTitle, delay);
+      // the strip of themes of the QR screen is built while the page is looked at, not on opening
+      setTimeout(warmAndroidQrThemes, 1500);
       androidQrBtn.classList.add('android-qr-button');
       tab.header.prepend(androidQrBtn);
       const backBubble = tab.header.querySelector<HTMLElement>('.sidebar-close-button');

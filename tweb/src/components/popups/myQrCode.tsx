@@ -2,6 +2,7 @@ import {
   createMemo,
   createEffect,
   createResource,
+  createRoot,
   createSignal,
   onCleanup,
   onMount,
@@ -516,6 +517,7 @@ function TopSection(props: {
   };
 
   let paintedOnce = false;
+  let bakeTimer: ReturnType<typeof setTimeout>;
   const paint = () => {
     // `disposed` guards the late avatar-`load` listener (and any stray callback)
     // from painting into a detached canvas after the popup closes.
@@ -546,12 +548,22 @@ function TopSection(props: {
     // `clipboard.write`. Each paint bumps `blobRepaintId` so any in-flight
     // toBlob from a previous frame is discarded. iOS uses 390×844pt @ 3× =
     // 1170×2532px (ChatQrCodeScreen.swift L1909-1914) — we match exactly.
-    paintTo(exportCanvas, EXPORT_LAYOUT);
-    const id = ++blobRepaintId;
-    exportCanvas.toBlob((b) => {
-      if(id !== blobRepaintId) return;
-      latestBlob = b ?? undefined;
-    }, 'image/png');
+    // Android: the big picture is baked once things have settled, not on each of the repaints of the
+    // opening (it is a heavy paint and a PNG encode, and the screen is rising meanwhile)
+    const bake = () => {
+      if(disposed) return;
+      paintTo(exportCanvas, EXPORT_LAYOUT);
+      const id = ++blobRepaintId;
+      exportCanvas.toBlob((b) => {
+        if(id !== blobRepaintId) return;
+        latestBlob = b ?? undefined;
+      }, 'image/png');
+    };
+
+    if(IS_ANDROID) {
+      clearTimeout(bakeTimer);
+      bakeTimer = setTimeout(bake, 900);
+    } else bake();
   };
 
   // Async: regenerate QR canvas whenever its inputs change. NOT nightMode — the
@@ -622,6 +634,7 @@ function TopSection(props: {
   onCleanup(() => {
     disposed = true;
     clearTimeout(readyFallbackTimer);
+    clearTimeout(bakeTimer);
   });
   // Defer to a microtask so refs are populated.
   queueMicrotask(startAvatarObserver);
@@ -942,6 +955,33 @@ function PopupThemeApplier(props: {
  * which broke our seamless lower-panel look). Below the row is a Section with
  * the reusable ChatThemesPicker.
  */
+// Android: the strip of themes is built once and kept (its wallpapers and animated emoji take a while to
+// load), then put into each opening of the screen. It lives in a root of its own that is never disposed.
+const [cachedBase, setCachedBase] = createSignal<BaseTheme['_']>('baseThemeClassic');
+const [cachedSelected, setCachedSelected] = createSignal('');
+let cachedOnSelect: (theme: Theme) => void = () => {};
+let cachedPicker: HTMLElement | undefined;
+
+function acquireThemePicker() {
+  if(!cachedPicker) {
+    createRoot(() => {
+      cachedPicker = ChatThemesPicker({
+        class: styles.themePicker,
+        selectedId: cachedSelected,
+        baseTheme: cachedBase,
+        onSelect: (theme) => cachedOnSelect(theme)
+      }) as unknown as HTMLElement;
+    });
+  }
+
+  return cachedPicker;
+}
+
+/** Builds the strip of themes ahead of the first opening of the screen. */
+export function warmAndroidQrThemes() {
+  if(IS_ANDROID) acquireThemePicker();
+}
+
 function BodySlot(props: {shared: QrPopupShared}) {
   const {
     selectedThemeId, setSelectedThemeId, baseTheme, nightMode, setNightMode,
@@ -964,6 +1004,17 @@ function BodySlot(props: {shared: QrPopupShared}) {
     }, {defer: true}));
   }
 
+  const androidPicker = () => {
+    cachedOnSelect = (theme) => setSelectedThemeId(String(theme.id ?? ''));
+    setCachedBase(baseTheme());
+    setCachedSelected(selectedThemeId());
+    createEffect(() => {
+      setCachedBase(baseTheme());
+      setCachedSelected(selectedThemeId());
+    });
+    return acquireThemePicker();
+  };
+
   return (
     <PopupElement.Body>
       <div ref={fadeSentinel} style={{display: 'none'}} />
@@ -983,12 +1034,14 @@ function BodySlot(props: {shared: QrPopupShared}) {
       </PopupElement.Header>
 
       <Section noShadow noMarginBottom>
-        <ChatThemesPicker
-          class={styles.themePicker}
-          selectedId={selectedThemeId}
-          onSelect={(theme) => setSelectedThemeId(String(theme.id ?? ''))}
-          baseTheme={baseTheme}
-        />
+        {IS_ANDROID ? androidPicker() : (
+          <ChatThemesPicker
+            class={styles.themePicker}
+            selectedId={selectedThemeId}
+            onSelect={(theme) => setSelectedThemeId(String(theme.id ?? ''))}
+            baseTheme={baseTheme}
+          />
+        )}
       </Section>
     </PopupElement.Body>
   );
@@ -1083,21 +1136,18 @@ function AndroidQrSwipe() {
   let sentinel!: HTMLDivElement;
   onMount(() => {
     const stop = attachAndroidQrSwipe(sentinel);
-    // The screen takes the whole display: the gesture strip goes away while it is up. It goes once the
-    // screen has come up over the bar (the bar moves with the strip, and moving under the rising screen
-    // would be seen), and comes back the moment the screen starts to go down.
+    // The screen takes the whole display: the gesture strip goes away the moment it is opened, and comes
+    // back the moment the screen starts to go down.
     const popup = sentinel.closest<HTMLElement>('.popup');
-    const hideTimeout = setTimeout(() => setAndroidNavigationHidden(true), 450);
+    setAndroidNavigationHidden(true);
     const observer = new MutationObserver(() => {
       if(!popup.classList.contains('active')) {
-        clearTimeout(hideTimeout);
         setAndroidNavigationHidden(false);
       }
     });
     observer.observe(popup, {attributes: true, attributeFilter: ['class']});
     onCleanup(() => {
       stop?.();
-      clearTimeout(hideTimeout);
       observer.disconnect();
       setAndroidNavigationHidden(false);
     });
