@@ -46,7 +46,8 @@ import rootScope from '@lib/rootScope';
 import showPinMessagePopup from '@components/popups/unpinMessage';
 import tsNow from '@helpers/tsNow';
 import appNavigationController, {NavigationItem} from '@components/appNavigationController';
-import {IS_MOBILE, IS_MOBILE_SAFARI} from '@environment/userAgent';
+import {IS_ANDROID, IS_MOBILE, IS_MOBILE_SAFARI} from '@environment/userAgent';
+import createGooeyGlass from '@helpers/gooeyGlass';
 import I18n, {FormatterArguments, i18n, join, LangPackKey} from '@lib/langPack';
 import {
   AttachedMediaType,
@@ -263,6 +264,8 @@ type ChatInputAttachMenuButton = ButtonMenuItemOptionsVerifiable & {
 export type ChatInputReplyTo = Pick<MessageSendingParams, 'replyToMsgId' | 'replyToQuote' | 'replyToPollOption' | 'replyToStoryId' | 'replyToPeerId' | 'replyToMonoforumPeerId'>;
 
 const CLASS_NAME = 'chat-input';
+// Android shows the sticker icon where the other platforms have the smile
+const EMOTICONS_ICON: Icon = IS_ANDROID ? 'stickers' : 'smile';
 const PEER_EXCEPTIONS = new Set<ChatType>([ChatType.Scheduled, ChatType.Stories, ChatType.Saved, ChatType.Welcome]);
 
 type WatchDownloadProgressArgs<T> = {
@@ -1233,7 +1236,7 @@ export default class ChatInput {
       this.replyInTopicOverlay.append(i18n('Chat.Input.ReplyToAnswer'));
     }
 
-    if(!this.excludeParts.emoticons) this.btnToggleEmoticons = this.createButtonIcon('smile toggle-emoticons', {noRipple: true, ariaLabel: 'Emoji'});
+    if(!this.excludeParts.emoticons) this.btnToggleEmoticons = this.createButtonIcon(EMOTICONS_ICON + ' toggle-emoticons', {noRipple: true, ariaLabel: 'Emoji'});
 
     this.btnSendGift = this.createButtonIcon('gift toggle-send-gift float hide', {
       noRipple: true,
@@ -1691,6 +1694,7 @@ export default class ChatInput {
     // Move the morphing send/record button into the input row as the last button.
     // btnCancelRecord is built above but intentionally not appended to the DOM.
     this.newMessageWrapper.append(this.btnSendContainer);
+    if(IS_ANDROID) this.mountAndroidGlass();
     this.inputContainer.append(...[this.btnReaction].filter(Boolean));
 
     // The voice + round-video recording panels are constructed and mounted by
@@ -2398,7 +2402,7 @@ export default class ChatInput {
     if(!IS_TOUCH_SUPPORTED) {
       this.btnToggleEmoticons.classList.toggle('active', open);
     } else {
-      replaceButtonIcon(this.btnToggleEmoticons, open ? 'keyboard' : 'smile');
+      replaceButtonIcon(this.btnToggleEmoticons, open ? 'keyboard' : EMOTICONS_ICON);
     }
   };
 
@@ -3444,6 +3448,63 @@ export default class ChatInput {
     }
 
     this.updateSendBtn();
+  }
+
+  // Android: the clip, the field (with the stickers button) and the record button are three drops of glass
+  // that run into one while the field is being typed in
+  private mountAndroidGlass() {
+    const row = this.newMessageWrapper;
+    const send = this.btnSendContainer;
+    const gooey = createGooeyGlass({
+      host: row,
+      getShapes: (width, height, state) => {
+        const size = send.offsetWidth;
+        const gap = parseFloat(getComputedStyle(row).columnGap) || 8;
+        const closeLeft = (size / 2 + gap) * state.left;
+        const closeRight = (size / 2 + gap) * state.right;
+        const clip = state.swellClip * 3, field = state.swellField * 3, record = state.swellRecord * 3;
+        return [
+          {x: -clip, y: height - size - clip, width: size + clip * 2, height: size + clip * 2, radius: size / 2 + clip},
+          {x: size + gap - closeLeft, y: -field, width: width - (size + gap) * 2 + closeLeft + closeRight, height: height + field * 2, radius: size / 2 + field},
+          {x: width - size - record, y: height - size - record, width: size + record * 2, height: size + record * 2, radius: size / 2 + record}
+        ];
+      }
+    });
+
+    // a finger held on a drop enlarges it and closes the gap on its side(s); a tap does the same and lets go
+    const PEAK = .2, MIN_HOLD = 140;
+    let held = false;
+    let pressedAt = 0;
+    let release: number;
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if(target.closest('.attach-file')) gooey.setState({left: PEAK, swellClip: 1});
+      else if(target.closest('.btn-send-container')) gooey.setState({right: PEAK, swellRecord: 1});
+      else if(target.closest('.input-message-container, .toggle-emoticons')) gooey.setState({left: PEAK, right: PEAK, swellField: 1});
+      else return;
+      held = true;
+      pressedAt = performance.now();
+      clearTimeout(release);
+    };
+    const onUp = () => {
+      if(!held) return;
+      clearTimeout(release);
+      release = window.setTimeout(() => {
+        held = false;
+        gooey.setState({});
+      }, Math.max(0, MIN_HOLD - (performance.now() - pressedAt)));
+    };
+    this.listenerSetter.add(row)('pointerdown', onDown);
+    this.listenerSetter.add(document)('pointerup', onUp);
+    this.listenerSetter.add(document)('pointercancel', onUp);
+    // focus that came without a press (keyboard, a reply) still plays the merge once
+    this.listenerSetter.add(row)('focusin', (e) => {
+      if(!held && (e.target as HTMLElement).closest('.input-message-input')) gooey.pulse({left: PEAK, right: PEAK});
+    });
+    this.chat.destroyMiddlewareHelper.onDestroy(() => {
+      clearTimeout(release);
+      gooey.destroy();
+    });
   }
 
   private notifyChatInputHeight() {

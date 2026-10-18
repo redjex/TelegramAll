@@ -63,7 +63,8 @@
   </div>
   <script>
     // the frame is named for the app to switch to the Android version inside it (nothing else is changed)
-    document.getElementById('app').src = '/';
+    // module SharedWorkers sometimes fail to start in the preview browser; a dedicated worker always does
+    document.getElementById('app').src = '/?noSharedWorker=1';
     const phone = document.getElementById('phone');
     const app = document.getElementById('app');
     document.getElementById('reload').onclick = () => app.contentWindow.location.reload();

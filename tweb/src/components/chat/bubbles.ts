@@ -4811,7 +4811,7 @@ export default class ChatBubbles {
 
     this.paddingBottom = document.createElement('div');
     this.paddingBottom.classList.add('bubbles-padding', 'bubbles-padding-bottom');
-    this.paddingBottom.style.height = this.chat.chatPaddingBottom[0]() + 'px';
+    this.paddingBottom.style.height = `calc(${this.chat.chatPaddingBottom[0]()}px + var(--sab, 0px))`;
 
     this.scrollable.container.append(this.paddingTop, this.chatInner, this.paddingBottom);
 

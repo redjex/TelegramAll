@@ -365,7 +365,8 @@ export default class Chat extends EventListenerBase<{
     this.chatPaddingTop[1](top);
     this.chatPaddingBottom[1](bottom);
     if(this.bubbles?.paddingTop) this.bubbles.paddingTop.style.height = top + 'px';
-    if(this.bubbles?.paddingBottom) this.bubbles.paddingBottom.style.height = bottom + 'px';
+    // the input sits above the gesture bar on Android, so the list ends above it too
+    if(this.bubbles?.paddingBottom) this.bubbles.paddingBottom.style.height = `calc(${bottom}px + var(--sab, 0px))`;
     this.bubbles?.updateStickyIntersectorRootMargin?.();
   }
 

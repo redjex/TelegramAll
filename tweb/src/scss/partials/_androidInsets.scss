@@ -36,6 +36,37 @@ html.is-android {
     padding-bottom: var(--sab);
   }
 
+  // the messages blur out under the top bar and the input (as on iOS) instead of fading to the wallpaper
+  .bubbles-scrollable {
+    mask-image: none;
+  }
+
+  .bubbles::before,
+  .bubbles::after {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    inset-inline: 0;
+    pointer-events: none;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  // the blur is an ellipse: strongest in the middle of the edge, curving away towards the sides
+  .bubbles::before {
+    top: 0;
+    height: var(--chat-padding-top);
+    mask-image: radial-gradient(ellipse 85% 100% at 50% 0, #000 45%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 85% 100% at 50% 0, #000 45%, transparent 100%);
+  }
+
+  .bubbles::after {
+    bottom: 0;
+    height: calc(3rem + var(--page-chats-padding) + var(--chat-input-height-surplus) + var(--sab));
+    mask-image: radial-gradient(ellipse 85% 100% at 50% 100%, #000 45%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 85% 100% at 50% 100%, #000 45%, transparent 100%);
+  }
+
   // lists end above the gesture bar, but draw under it
   .sidebar-content .scrollable-y,
   .chatlist-container .scrollable-y {
@@ -365,5 +396,104 @@ html.is-android.night {
     color: #fff;
     text-align: center;
     font-size: 15px;
+  }
+}
+
+// ----- the chat input: three drops of glass that run into one while typing (helpers/gooeyGlass.ts draws
+// the layer behind the row; the plate of the input is gone)
+
+html.is-android {
+  .gooey-glass {
+    position: absolute;
+    z-index: 0;
+    inset: calc(var(--gooey-pad) * -1);
+    pointer-events: none;
+
+    > *,
+    > * > * {
+      position: absolute;
+      inset: 0;
+      mask-size: 100% 100%;
+      -webkit-mask-size: 100% 100%;
+    }
+  }
+
+  .gooey-glass-shadow {
+    filter: blur(9px);
+    transform: translateY(6px);
+
+    > * {
+      background: var(--as-glass-shadow);
+      opacity: .7;
+    }
+  }
+
+  .gooey-glass-rim {
+    background: var(--as-glass-rim);
+    // the two masks (the grown shape, the shape) cancel out in the middle: a ring is left
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+  }
+
+  .gooey-glass-body {
+    background:
+      linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 55%),
+      var(--tab-glass);
+    -webkit-backdrop-filter: blur(14px) var(--as-glass-after);
+    backdrop-filter: blur(14px) var(--as-glass-after);
+  }
+
+  .chat-input-wrapper {
+    --padding-vertical: 0px;
+    --padding-horizontal: 0px;
+    --button-size: 3rem;
+    --button-horizontal-margin: .5rem;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+
+    .new-message-wrapper {
+      overflow: visible;
+      padding: 0;
+      background: none;
+    }
+
+    .input-message-container,
+    .toggle-emoticons,
+    .attach-file,
+    .btn-send-container {
+      position: relative;
+      z-index: 1;
+    }
+
+    // the text and its placeholder start inside the drop, not on its edge
+    .input-message-container {
+      margin-inline-start: 1rem;
+    }
+
+    .attach-file,
+    .btn-send-container {
+      width: var(--button-size);
+      height: var(--button-size);
+      border-radius: 50%;
+    }
+
+    .attach-file {
+      color: var(--as-gray);
+    }
+
+    // the record button: no blue fill, grey like the other icons (the send arrow stays blue)
+    .btn-send {
+      --size: var(--button-size);
+      color: var(--as-gray) !important;
+      background: none !important;
+
+      &.send,
+      &.edit,
+      &.schedule,
+      &.forward {
+        color: var(--as-blue) !important;
+      }
+    }
   }
 }

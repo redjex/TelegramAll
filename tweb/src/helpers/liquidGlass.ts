@@ -14,7 +14,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 let counter = 0;
 let defs: SVGDefsElement;
 
-function getDefs() {
+export function getDefs() {
   if(defs) return defs;
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('width', '0');
@@ -32,7 +32,7 @@ export const SUPPORTS_LIQUID_GLASS = typeof CSS !== 'undefined' &&
   /Chrome\//.test(navigator.userAgent) && !/Firefox/.test(navigator.userAgent);
 
 /** the signed distance from (x, y) to a rounded rectangle of size w × h: negative inside */
-function sdRoundRect(x: number, y: number, w: number, h: number, r: number) {
+export function sdRoundRect(x: number, y: number, w: number, h: number, r: number) {
   const qx = Math.abs(x - w / 2) - (w / 2 - r);
   const qy = Math.abs(y - h / 2) - (h / 2 - r);
   return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
@@ -81,6 +81,40 @@ function channel(matrix: string, result: string, strength: number, map: string) 
     <feColorMatrix in="${result}-d" type="matrix" values="${matrix}" result="${result}"/>`;
 }
 
+/** the primitives of the refraction filter: the map as an image, displaced three times (R, G, B by a hair different amounts) */
+export function liquidFilterContent(w: number, h: number, map: string, strength: number) {
+  // red, green and blue are refracted by a hair different amounts: the coloured fringe of real glass
+  return `
+      <feImage href="${map}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="map"/>
+      ${channel('1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0', 'r', strength * 1.0, 'map')}
+      ${channel('0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0', 'g', strength * 0.92, 'map')}
+      ${channel('0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0', 'b', strength * 0.84, 'map')}
+      <feBlend in="r" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="b" mode="screen"/>`;
+}
+
+/** a refraction filter of its own in the shared <defs>, for a shape that is not a rounded rectangle */
+export function createLiquidFilter() {
+  const id = `liquid-glass-${++counter}`;
+  const filter = document.createElementNS(SVG_NS, 'filter');
+  filter.id = id;
+  filter.setAttribute('color-interpolation-filters', 'sRGB');
+  filter.setAttribute('filterUnits', 'userSpaceOnUse');
+  filter.setAttribute('primitiveUnits', 'userSpaceOnUse');
+  getDefs().append(filter);
+  return {
+    id,
+    update(w: number, h: number, map: string, strength: number) {
+      filter.setAttribute('x', '0');
+      filter.setAttribute('y', '0');
+      filter.setAttribute('width', String(w));
+      filter.setAttribute('height', String(h));
+      filter.innerHTML = liquidFilterContent(w, h, map, strength);
+    },
+    remove: () => filter.remove()
+  };
+}
+
 export type LiquidGlassOptions = {
   /** corner radius in px; the default makes a pill (half the height) */
   radius?: number,
@@ -127,13 +161,7 @@ export default function applyLiquidGlass(element: HTMLElement, options: LiquidGl
     filter.setAttribute('width', String(w));
     filter.setAttribute('height', String(h));
     // red, green and blue are refracted by a hair different amounts: the coloured fringe of real glass
-    filter.innerHTML = `
-      <feImage href="${map}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="map"/>
-      ${channel('1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0', 'r', strength * 1.0, 'map')}
-      ${channel('0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0', 'g', strength * 0.92, 'map')}
-      ${channel('0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0', 'b', strength * 0.84, 'map')}
-      <feBlend in="r" in2="g" mode="screen" result="rg"/>
-      <feBlend in="rg" in2="b" mode="screen"/>`;
+    filter.innerHTML = liquidFilterContent(w, h, map, strength);
 
     const value = `url(#${id}) ${after}`;
     element.style.setProperty('backdrop-filter', value);
