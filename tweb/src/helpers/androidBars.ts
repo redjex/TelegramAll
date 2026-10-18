@@ -27,3 +27,16 @@ export default function initAndroidInsets() {
     set(34, 24);
   }
 }
+
+/**
+ * Takes the navigation bar (the strip at the bottom) away while a full-screen sheet is up, and gives it
+ * back. The class on the root is for the phone frame of the web preview, which hides its own strip.
+ */
+export function setAndroidNavigationHidden(hidden: boolean) {
+  document.documentElement.classList.toggle('android-nav-hidden', hidden);
+  // the frame of the preview has no native side to tell the bar's size
+  if(IN_ANDROID_PREVIEW_FRAME) document.documentElement.style.setProperty('--sab', hidden ? '0px' : '24px');
+  try {
+    (window as any).TgAllAndroid?.setNavigationHidden?.(hidden);
+  } catch{}
+}

@@ -80,6 +80,7 @@
   }
 
   :global(.sidebar-close-button),
+  :global(.android-qr-button),
   :global(.android-header-actions) {
     border-radius: 22px;
     // liquid glass: the page behind is blurred and brightened, with a lit rim and a soft sheen
@@ -93,6 +94,7 @@
 
   // the rim: a hairline that catches the light at two opposite corners and all but vanishes between them
   :global(.sidebar-close-button)::after,
+  :global(.android-qr-button)::after,
   :global(.android-header-actions)::after {
     content: "";
     position: absolute;
@@ -106,7 +108,8 @@
     pointer-events: none;
   }
 
-  :global(.sidebar-close-button) {
+  :global(.sidebar-close-button),
+  :global(.android-qr-button) {
     flex: none;
     width: 44px;
     height: 44px;
@@ -165,7 +168,8 @@
   min-height: 100%;
   // the toolbar (56px) lies over the content of a settings tab
   padding-top: calc(56px + var(--sat));
-  padding-bottom: calc(24px + var(--sab) + var(--tb));
+  // the scroll area already keeps clear of the gesture bar and the tab bar (scss/partials/_androidInsets.scss)
+  padding-bottom: 12px;
   background: var(--as-page);
   color: var(--as-text);
   font-family: Roboto, sans-serif;

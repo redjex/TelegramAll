@@ -10,6 +10,7 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.getcapacitor.BridgeActivity;
@@ -60,6 +61,18 @@ public class MainActivity extends BridgeActivity {
       @JavascriptInterface
       public String getInsets() {
         return insets[0] + "," + insets[1] + "," + insets[2] + "," + insets[3];
+      }
+
+      // a full-screen sheet takes the navigation bar (the gesture strip) away: it comes back with a swipe
+      // from the edge and goes again by itself
+      @JavascriptInterface
+      public void setNavigationHidden(boolean hidden) {
+        runOnUiThread(() -> {
+          WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+          controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+          if(hidden) controller.hide(WindowInsetsCompat.Type.navigationBars());
+          else controller.show(WindowInsetsCompat.Type.navigationBars());
+        });
       }
     }, "TgAllAndroid");
   }

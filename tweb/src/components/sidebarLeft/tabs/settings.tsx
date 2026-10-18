@@ -112,7 +112,9 @@ const Settings = () => {
     }, {
       icon: 'qr',
       text: 'QRCode.Title',
-      onClick: () => showMyQrCodePopup()
+      onClick: () => showMyQrCodePopup(),
+      // on Android it is the glass button at the top left
+      verify: () => !IS_ANDROID
     }, {
       icon: 'logout',
       text: 'EditAccount.Logout',
@@ -129,6 +131,8 @@ const Settings = () => {
   const isSearching = () => searchQuery() !== undefined;
 
   const androidActions = document.createElement('div');
+  const androidQrBtn = ButtonIcon('qr', {ariaLabel: 'QRCode.Title'});
+  attachClickEvent(androidQrBtn, () => showMyQrCodePopup(), {listenerSetter: tab.listenerSetter});
   let stopGlass: Array<() => void> = [];
   const mainLayer = document.createElement('div');
   mainLayer.classList.add('transition-item', 'settings-layer');
@@ -227,8 +231,11 @@ const Settings = () => {
       androidActions.classList.add('android-header-actions');
       androidActions.append(searchBtn, btnMenu);
       tab.header.append(androidActions);
+      // the QR code button leaves the menu for the left corner of the toolbar (where the arrow back is not shown)
+      androidQrBtn.classList.add('android-qr-button');
+      tab.header.prepend(androidQrBtn);
       const backBubble = tab.header.querySelector<HTMLElement>('.sidebar-close-button');
-      stopGlass = [backBubble, androidActions].filter(Boolean).map((bubble) => applyLiquidGlass(bubble, {after: 'blur(7px) var(--as-glass-after)'}));
+      stopGlass = [backBubble, androidQrBtn, androidActions].filter(Boolean).map((bubble) => applyLiquidGlass(bubble, {after: 'blur(7px) var(--as-glass-after)'}));
       tab.content.addEventListener('scroll', (e) => {
         const target = e.target as HTMLElement;
         if(target.classList?.contains('scrollable')) {
@@ -262,7 +269,7 @@ const Settings = () => {
     stopGlass.forEach((stop) => stop());
     // the header outlives the component (it belongs to the tab), so take the
     // buttons back out — otherwise a hot reload leaves a second set behind
-    for(const button of [searchBtn, btnMenu, androidActions]) button.remove();
+    for(const button of [searchBtn, btnMenu, androidActions, androidQrBtn]) button.remove();
     tab.container.append(tab.header, tab.content);
     mainLayer.remove();
     searchLayer.remove();

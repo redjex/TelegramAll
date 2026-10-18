@@ -28,6 +28,10 @@ import {AppTheme, DEFAULT_THEME} from '@config/state';
 import {useAppSettings} from '@stores/appSettings';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
 import ChatThemesPicker from '@components/chatThemesPicker';
+import {IS_ANDROID} from '@environment/userAgent';
+import attachAndroidQrSwipe from '@components/popups/androidQrSwipe';
+import {setAndroidNavigationHidden} from '@helpers/androidBars';
+import openAndroidQrScanner from '@components/popups/androidQrScanner';
 
 import styles from './myQrCode.module.scss';
 import {FontFamily, FontWeightBold} from '@config/font';
@@ -243,7 +247,7 @@ type CanvasLayout = {
 const CARD_W = 300;                         // iOS L2001
 const CARD_H = 330;                         // iOS L2003 (300 × 1.1)
 const CARD_R = 42;                          // iOS L1634
-const AVATAR_RING = 4;                      // 4px white halo (user request)
+const AVATAR_RING = IS_ANDROID ? 0 : 4;     // 4px white halo (user request); none on Android
 const AVATAR_R = AVATAR_SIZE / 2;           // 50
 const AVATAR_OVERHANG = Math.floor(AVATAR_SIZE * 0.7);  // 70 — L2038
 
@@ -252,7 +256,39 @@ const DISPLAY_CANVAS_W = 376;
 const DISPLAY_TOP_PAD = 40;                 // 2.5rem rail above the avatar
 const DISPLAY_BOTTOM_PAD = 32;              // 2rem rail below the card
 const DISPLAY_CARD_Y = DISPLAY_TOP_PAD + AVATAR_OVERHANG;        // 110
-const DISPLAY_LAYOUT: CanvasLayout = {
+// Android: the canvas is the whole display (the wallpaper runs behind the sheet at the bottom), and the
+// card, smaller than iOS' (a 170px code), stands in the part above the sheet.
+const ANDROID_QR_SIZE = 170;
+const ANDROID_CARD_W = 262;
+const ANDROID_CARD_H = 50 + ANDROID_QR_SIZE + 20 + 40;
+const ANDROID_SHEET_HEIGHT = 300;           // the sheet: the buttons, the row of themes, the Share button
+function makeAndroidDisplayLayout(): CanvasLayout {
+  const canvasW = window.innerWidth;
+  const canvasH = window.innerHeight;
+  const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
+  // the card and the avatar over it are centred in what is left above the sheet, below the status bar
+  const free = canvasH - ANDROID_SHEET_HEIGHT - sat;
+  const content = AVATAR_OVERHANG + ANDROID_CARD_H;
+  const cardY = sat + Math.max(16, (free - content) / 2) + AVATAR_OVERHANG;
+  return {
+    canvasW,
+    canvasH,
+    dpr: 2,
+    cardX: (canvasW - ANDROID_CARD_W) / 2,
+    cardY,
+    cardW: ANDROID_CARD_W,
+    cardH: ANDROID_CARD_H,
+    cardR: CARD_R - 6,
+    avatarCx: canvasW / 2,
+    avatarCy: cardY - AVATAR_OVERHANG + AVATAR_R,
+    qrX: (canvasW - ANDROID_QR_SIZE) / 2,
+    qrY: cardY + 50,
+    qrSize: ANDROID_QR_SIZE,
+    usernameY: cardY + 50 + ANDROID_QR_SIZE + 20
+  };
+}
+
+const DISPLAY_LAYOUT: CanvasLayout = IS_ANDROID ? makeAndroidDisplayLayout() : {
   canvasW: DISPLAY_CANVAS_W,
   canvasH: DISPLAY_CARD_Y + CARD_H + DISPLAY_BOTTOM_PAD,         // 472
   dpr: 2,
@@ -479,10 +515,26 @@ function TopSection(props: {
     }
   };
 
+  let paintedOnce = false;
   const paint = () => {
     // `disposed` guards the late avatar-`load` listener (and any stray callback)
     // from painting into a detached canvas after the popup closes.
     if(disposed || !canvas) return;
+    // Android: a repaint (a theme or a wallpaper chosen) fades in over what was there: the picture that
+    // was is kept on top as it is and fades away
+    if(IS_ANDROID && paintedOnce) {
+      const snapshot = document.createElement('canvas');
+      snapshot.width = canvas.width;
+      snapshot.height = canvas.height;
+      snapshot.getContext('2d').drawImage(canvas, 0, 0);
+      snapshot.className = styles.heroFade;
+      canvas.after(snapshot);
+      requestAnimationFrame(() => requestAnimationFrame(() => snapshot.style.opacity = '0'));
+      setTimeout(() => snapshot.remove(), 600);
+    }
+
+    paintedOnce = true;
+
     // 1. Paint the visible compact canvas.
     paintTo(canvas, DISPLAY_LAYOUT);
 
@@ -895,8 +947,25 @@ function BodySlot(props: {shared: QrPopupShared}) {
     activeWallPaper
   } = props.shared;
 
+  // Android: the row of themes shows the other set of tiles the moment the mode changes, while the sheet
+  // fades to its colours: so the row fades in with it, by the same clock
+  let fadeSentinel!: HTMLDivElement;
+  if(IS_ANDROID) {
+    createEffect(on(nightMode, () => {
+      const row = fadeSentinel?.closest('.popup')?.querySelector<HTMLElement>('.' + styles.themePicker);
+      if(!row) return;
+      row.style.transition = 'none';
+      row.style.opacity = '0';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        row.style.transition = 'opacity .4s ease';
+        row.style.opacity = '';
+      }));
+    }, {defer: true}));
+  }
+
   return (
     <PopupElement.Body>
+      <div ref={fadeSentinel} style={{display: 'none'}} />
       <PopupThemeApplier
         theme={() => activeWallPaper().theme}
         isNight={nightMode}
@@ -905,7 +974,7 @@ function BodySlot(props: {shared: QrPopupShared}) {
         <PopupElement.CloseButton />
         <PopupElement.Title class={styles.title}>{i18n('QRCode.Title')}</PopupElement.Title>
         <Button.Icon
-          icon={nightMode() ? 'darkmode_filled' : 'darkmode'}
+          icon={IS_ANDROID ? (nightMode() ? 'brightness' : 'darkmode') : (nightMode() ? 'darkmode_filled' : 'darkmode')}
           aria-label={I18n.format('DarkMode', true)}
           aria-pressed={nightMode()}
           onClick={() => setNightMode(!nightMode())}
@@ -949,18 +1018,78 @@ function FooterSlot(props: {shared: QrPopupShared, getBlob: () => Blob | undefin
     toastNew({langPackKey: outcome === 'image' ? 'QRCode.Copied' : outcome === 'link' ? 'QRCode.CopiedLink' : 'Error.AnError'});
   };
 
+  // Android: the picture goes out through the system share sheet where there is one
+  const onShareClick = async() => {
+    const blob = props.getBlob();
+    try {
+      const file = blob && new File([blob], 'qr.png', {type: 'image/png'});
+      if(file && (navigator as any).canShare?.({files: [file]})) {
+        await navigator.share({files: [file], url: profileUrl()});
+        return;
+      }
+
+      if(navigator.share) {
+        await navigator.share({url: profileUrl()});
+        return;
+      }
+    } catch(err) {
+      if((err as any)?.name === 'AbortError') return; // the sheet was closed
+    }
+
+    await onCopyClick();
+  };
+
   return (
     <PopupElement.Footer>
-      <PopupElement.FooterButton
-        class={styles.copyBtn}
-        iconLeft="copy"
-        langKey="QRCode.Copy"
-        callback={async() => {
-          await onCopyClick();
-        }}
-      />
+      {IS_ANDROID && (
+        <PopupElement.FooterButton
+          class={styles.shareBtn}
+          iconLeft="forward"
+          langKey="ShareFile"
+          callback={async() => {
+            await onShareClick();
+          }}
+        />
+      )}
+      {IS_ANDROID && (
+        <PopupElement.FooterButton
+          color="secondary"
+          class={styles.scanBtn}
+          iconLeft="qr"
+          callback={() => {
+            openAndroidQrScanner();
+          }}
+        >
+          Scan QR Code
+        </PopupElement.FooterButton>
+      )}
+      {!IS_ANDROID && (
+        <PopupElement.FooterButton
+          class={styles.copyBtn}
+          iconLeft="copy"
+          langKey="QRCode.Copy"
+          callback={async() => {
+            await onCopyClick();
+          }}
+        />
+      )}
     </PopupElement.Footer>
   );
+}
+
+/** Android: takes the screen down with a swipe from the top, like the sheets of the system do. */
+function AndroidQrSwipe() {
+  let sentinel!: HTMLDivElement;
+  onMount(() => {
+    const stop = attachAndroidQrSwipe(sentinel);
+    // the screen takes the whole display: the gesture strip goes away while it is up
+    setAndroidNavigationHidden(true);
+    onCleanup(() => {
+      stop?.();
+      setAndroidNavigationHidden(false);
+    });
+  });
+  return <div ref={sentinel} style={{display: 'none'}} />;
 }
 
 /**
@@ -1005,6 +1134,7 @@ export default async function showMyQrCodePopup(peerId: PeerId = rootScope.myId,
         />
         <BodySlot shared={shared} />
         <FooterSlot shared={shared} getBlob={() => getBlob()} />
+        {IS_ANDROID && <AndroidQrSwipe />}
       </PopupElement>
     );
   });

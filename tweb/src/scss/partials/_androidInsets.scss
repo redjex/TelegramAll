@@ -312,3 +312,58 @@ html.is-android.night {
   --as-fade-4: 40%;
   --as-fade-5: 12%;
 }
+
+// ----- the QR code scanner (components/popups/androidQrScanner.ts): the camera over the whole screen
+
+.android-qr-scanner {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  background: #000;
+
+  video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(70vw, 280px);
+    aspect-ratio: 1;
+    transform: translate(-50%, -60%);
+    border: 3px solid #fff;
+    border-radius: 28px;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .45);
+  }
+
+  &-close {
+    position: absolute;
+    top: calc(var(--sat) + 8px);
+    left: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font-size: 24px;
+  }
+
+  &-hint {
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: calc(var(--sab) + 48px);
+    color: #fff;
+    text-align: center;
+    font-size: 15px;
+  }
+}
