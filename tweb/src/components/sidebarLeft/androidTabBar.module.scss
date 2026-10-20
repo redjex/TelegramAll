@@ -14,6 +14,29 @@
   transition: transform .3s cubic-bezier(.22, 1, .36, 1), opacity .2s;
 }
 
+// under the bar the chats go softly into the colour of the screen (and blur a little as they go)
+.fade {
+  --fade-mask: linear-gradient(to top, #000 0, rgba(0, 0, 0, .92) 24%, rgba(0, 0, 0, .7) 48%, rgba(0, 0, 0, .34) 72%, rgba(0, 0, 0, .06) 88%, transparent 100%);
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(-8px - var(--sab));
+  height: calc(56px + 8px + var(--sab) + 32px);
+  pointer-events: none;
+  background: linear-gradient(to top,
+    color-mix(in srgb, var(--fade-bg, var(--surface-color)) 96%, transparent) 0,
+    color-mix(in srgb, var(--fade-bg, var(--surface-color)) 84%, transparent) 24%,
+    color-mix(in srgb, var(--fade-bg, var(--surface-color)) 56%, transparent) 48%,
+    color-mix(in srgb, var(--fade-bg, var(--surface-color)) 24%, transparent) 72%,
+    color-mix(in srgb, var(--fade-bg, var(--surface-color)) 6%, transparent) 90%,
+    transparent 100%);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  -webkit-mask-image: var(--fade-mask);
+  mask-image: var(--fade-mask);
+}
+
 .hidden {
   opacity: 0;
   transform: translateY(calc(100% + 24px));
@@ -21,6 +44,7 @@
 
 .pill {
   position: relative;
+  z-index: 1;
   touch-action: none;
   user-select: none;
   display: flex;
@@ -31,25 +55,19 @@
   padding: 4px;
   border-radius: 28px;
   pointer-events: auto;
-  background:
-    linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 55%),
-    var(--tab-glass);
-  -webkit-backdrop-filter: blur(14px) var(--as-glass-after);
-  backdrop-filter: blur(14px) var(--as-glass-after);
-  box-shadow: 0 6px 20px var(--as-glass-shadow);
+  // dark clear glass: darker than what lies under it (the fade is the colour of the screen), so the bar stands out of it
+  --tab-glass: rgba(8, 8, 10, .5);
+  --tab-glass-edge: rgba(8, 8, 10, .34);
+  --as-glass-after: saturate(130%) brightness(.7);
 
-  // the same rim as the toolbar bubbles
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    padding: 1px;
-    border-radius: inherit;
-    background: linear-gradient(135deg, var(--as-rim-hi) 0, var(--as-rim-lo) 32%, var(--as-rim-lo) 68%, var(--as-rim-hi) 100%);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-    pointer-events: none;
+  // no glow of the colours under the bar
+  :global(.gooey-glass-glow) {
+    display: none !important;
+  }
+
+  // no outline: the glass has only its shadow
+  :global(.gooey-glass-drop) {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .5) !important;
   }
 }
 
@@ -100,7 +118,7 @@
 
   // under the droplet the icon swells, as it does under the lens on iOS
   .icon {
-    transform: scale(1.2);
+    transform: scale(calc(1.15 + .25 * var(--press, 0)));
   }
 
   .label {
@@ -108,9 +126,8 @@
   }
 }
 
-// the droplet: a lens of glass under the selected tab; it swells while it is held
+// the droplet: the plain grey pill under the selected tab (no glass: the glass is the lens, while a finger holds it)
 .droplet {
-  --press: 0;
   position: absolute;
   z-index: 2;
   top: 4px;
@@ -120,10 +137,23 @@
   border-radius: 24px;
   pointer-events: none;
   will-change: transform;
-  background:
-    linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 60%),
-    rgba(var(--droplet-tint), calc(.1 + .08 * var(--press)));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, calc(.08 + .12 * var(--press)));
+  background: rgba(128, 128, 134, .28);
+}
+
+// the lens under a finger: glass that bends the page and the lit icons under it (androidTabBar.tsx sizes and moves it)
+.lens {
+  position: absolute;
+  z-index: 4;
+  top: -7px;
+  left: 4px;
+  box-sizing: border-box;
+  height: 70px;
+  border-radius: 35px;
+  pointer-events: none;
+  will-change: transform;
+  visibility: hidden;
+  background: linear-gradient(135deg, var(--as-glass-sheen) 0, transparent 60%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
 
   &::after {
     content: "";

@@ -6,6 +6,7 @@ import {AppContactsTab, AppEditProfileTab, AppSettingsTab, getEditProfileInitArg
 import classNames from '@helpers/string/classNames';
 import pause from '@helpers/schedulers/pause';
 import applyLiquidGlass from '@helpers/liquidGlass';
+import createGooeyGlass from '@helpers/gooeyGlass';
 import rootScope from '@lib/rootScope';
 import {setTabSwitchDirection} from '@components/transition';
 import type SliderSuperTab from '@components/sliderTab';
@@ -28,6 +29,10 @@ const ICON_SIZE = 26;
 /** the droplet at rest: its height and the gap between it and the edge of the bar */
 const DROPLET_HEIGHT = 48;
 const DROPLET_INSET = 4;
+
+/** the lens that comes up under a finger: it is taller than the bar and wider than a tab (the factor is of the tab's width) */
+const LENS_HEIGHT = 70;
+const LENS_FACTOR = 1.5;
 
 /** the last frame of the official tab animations (res/raw/tab_*.json run from 0 to 6 at 60 fps) */
 const LAST_FRAME = 5;
@@ -53,6 +58,15 @@ function roundedRectPath(left: number, top: number, right: number, bottom: numbe
     'A' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(left) + ' ' + f(bottom - r) +
     'V' + f(top + r) +
     'A' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(left + r) + ' ' + f(top) + 'Z';
+}
+
+/** the colour of the screen on top, for the fade under the bar: what the chats and the lists go into */
+function screenColor() {
+  const slider = document.querySelector('.sidebar-slider');
+  const active = slider ? [...slider.children].filter((el) => el.classList.contains('tabs-tab') && el.classList.contains('active')) : [];
+  const top = active[active.length - 1];
+  const color = top ? getComputedStyle(top).backgroundColor : '';
+  return color && !/rgba?\(.*,\s*0\)$/.test(color) && color !== 'transparent' ? color : 'var(--surface-color)';
 }
 
 /** which of the bar's tabs the screen on top of the left sidebar belongs to; none for the deeper screens */
@@ -120,8 +134,10 @@ function TabFace(props: {tab: TabConfig, lit?: boolean}) {
 function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
   const [current, setCurrent] = createSignal<TabId>('chats');
   const [shown, setShown] = createSignal(true);
+  let bar!: HTMLDivElement;
   let pill!: HTMLDivElement;
   let droplet!: HTMLDivElement;
+  let lens!: HTMLDivElement;
   let glow!: HTMLDivElement;
   let base!: HTMLDivElement;
 
@@ -139,6 +155,7 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
       // deeper screens
       const visible = !!tab && document.body.classList.contains('is-left-column-shown');
       setShown(visible);
+      if(visible) bar.style.setProperty('--fade-bg', screenColor());
       document.documentElement.classList.toggle('android-tabbar-on', visible);
       if(tab) {
         if(chosen && tab !== chosen && performance.now() < chosenUntil) return;
@@ -155,13 +172,23 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
     observer.observe(document.body, {attributes: true, attributeFilter: ['class']});
     update();
 
-    const stopGlass = applyLiquidGlass(pill, {after: 'blur(7px) var(--as-glass-after)'});
+    // the bar is one drop of the same glass as the write bar and the top bar: its gradient, rim, glow and bend
+    const gooey = createGooeyGlass({
+      host: pill,
+      getShapes: (width, height) => [{x: 0, y: 0, width, height, radius: height / 2, source: 1}],
+      // the whole bar curves like a lens: what lies under it bends along all of its edge
+      bezel: .5,
+      bend: 1.7
+    });
+    // the lens bends what is under it: the page behind the bar and the lit icons
+    const stopLens = applyLiquidGlass(lens, {after: 'blur(.4px) saturate(150%)', radius: LENS_HEIGHT / 2});
     const sizeObserver = new ResizeObserver(() => droplets.snap());
     sizeObserver.observe(pill);
     onCleanup(() => {
       observer.disconnect();
       sizeObserver.disconnect();
-      stopGlass();
+      gooey.destroy();
+      stopLens();
       droplets.stop();
       cancelAnimationFrame(frame);
       document.documentElement.classList.remove('android-tabbar-on');
@@ -171,8 +198,8 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
   // ----- the droplet: a glass lens under the selected tab that can be taken and dragged along the bar.
   // It follows the finger, stretches with its speed, and settles on a tab with a spring, as on iOS.
   const droplets = (() => {
-    const SPRING = 320; // stiffness
-    const DAMPING = 24;
+    const SPRING = 260; // stiffness
+    const DAMPING = 29; // a little under the critical one: it settles softly, with hardly a swing
     let x = 0, v = 0, target = 0, press = 0, pressTarget = 0, raf = 0, last = 0, dragging = false;
 
     const tabWidth = () => (pill.clientWidth - 8) / TABS.length;
@@ -182,19 +209,26 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
 
     const render = () => {
       const stretch = Math.min(Math.abs(v) / 2400, .3);
-      // held, the droplet swells well past its resting size
-      const scale = 1 + .26 * press;
-      const sx = scale * (1 + stretch), sy = scale * (1 - stretch * .45);
-      droplet.style.transform = 'translate3d(' + x + 'px, 0, 0) scale(' + sx + ', ' + sy + ')';
-      droplet.style.setProperty('--press', String(press));
-
-      // The lit layer shows through a window the shape of the droplet, and the plain layer has that window
-      // cut out of it: inside the droplet there is only blue, outside it only the plain tabs.
+      // held, the droplet turns into a lens that is bigger than the bar is high, and the tab's lit copy swells inside it
+      const grown = Math.min(1, press);
       const w = tabWidth();
+      const lensWidth = w * LENS_FACTOR;
+      const sx = 1 + stretch, sy = 1 - stretch * .45;
+      droplet.style.transform = 'translate3d(' + x + 'px, 0, 0) scale(' + sx + ', ' + sy + ')';
+      droplet.style.opacity = String(1 - Math.min(1, grown * 2.5));
+
+      // The lit layer shows through a window the shape of the lens (or of the droplet), and the plain layer has that
+      // window cut out of it: inside it there is only blue, outside it only the plain tabs.
+      const windowWidth = (w + (lensWidth - w) * grown) * sx;
+      const windowHeight = (DROPLET_HEIGHT + (LENS_HEIGHT - DROPLET_HEIGHT) * grown) * sy;
+      lens.style.transform = 'translate3d(' + (x + (w - lensWidth) / 2) + 'px, 0, 0) scale(' + windowWidth / lensWidth + ', ' + windowHeight / LENS_HEIGHT + ')';
+      lens.style.opacity = String(Math.min(1, grown * 2.5));
+      lens.style.visibility = grown > .01 ? 'visible' : 'hidden';
+      glow.style.setProperty('--press', String(grown));
+
       const cx = DROPLET_INSET + x + w / 2;
       const cy = DROPLET_INSET + DROPLET_HEIGHT / 2;
-      const halfWidth = w * sx / 2, halfHeight = DROPLET_HEIGHT * sy / 2;
-      const hole = roundedRectPath(cx - halfWidth, cy - halfHeight, cx + halfWidth, cy + halfHeight);
+      const hole = roundedRectPath(cx - windowWidth / 2, cy - windowHeight / 2, cx + windowWidth / 2, cy + windowHeight / 2);
       glow.style.clipPath = 'path(\'' + hole + '\')';
       base.style.clipPath = 'path(evenodd, \'M-40 -40H' + (pill.clientWidth + 40) + 'V' + (pill.clientHeight + 40) + 'H-40Z' + hole + '\')';
     };
@@ -204,7 +238,7 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
       last = time;
 
       if(dragging) {
-        const next = x + (target - x) * Math.min(1, dt * 18);
+        const next = x + (target - x) * Math.min(1, dt * 13);
         v = (next - x) / dt;
         x = next;
       } else {
@@ -212,7 +246,7 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
         x += v * dt;
       }
 
-      press += (pressTarget - press) * Math.min(1, dt * 14);
+      press += (pressTarget - press) * Math.min(1, dt * 10);
       render();
 
       const moving = dragging || Math.abs(target - x) > .05 || Math.abs(v) > .5 || Math.abs(pressTarget - press) > .01;
@@ -238,6 +272,7 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
         x = target = xOf(current());
         v = 0;
         droplet.style.width = tabWidth() + 'px';
+        lens.style.width = tabWidth() * LENS_FACTOR + 'px';
         render();
       },
       moveTo(id: TabId) {
@@ -356,7 +391,8 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
   };
 
   return (
-    <div class={classNames(styles.bar, !shown() && styles.hidden)}>
+    <div ref={bar} class={classNames(styles.bar, !shown() && styles.hidden)}>
+      <div class={styles.fade} />
       <div ref={pill} class={styles.pill} role="tablist" onPointerDown={(e) => droplets.begin(e)}>
         <div ref={droplet} class={styles.droplet} />
         <div ref={base} class={styles.base}>
@@ -379,6 +415,7 @@ function AndroidTabBar(props: {sidebar: AppSidebarLeft}) {
             </div>
           )}</For>
         </div>
+        <div ref={lens} class={styles.lens} />
       </div>
     </div>
   );

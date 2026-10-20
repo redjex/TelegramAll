@@ -201,7 +201,11 @@ export type GooeyGlassOptions = {
   /** how long a change takes, ms */
   duration?: number,
   /** called after every redraw, so what lies on the drops (icons, text) can follow them */
-  onRender?: (state: GooeyState) => void
+  onRender?: (state: GooeyState) => void,
+  /** how wide the bending rim is, as a part of the smaller side of a drop (.3 by default; .5 curves the whole drop like a lens) */
+  bezel?: number,
+  /** how much stronger than the default the backdrop is bent at the rim (1 by default) */
+  bend?: number
 };
 
 const REST: GooeyState = {left: 0, right: 0, swellClip: 0, swellField: 0, swellRecord: 0, stretch: 0, dragX: 0, dragY: 0, typing: 0};
@@ -262,8 +266,8 @@ export default function createGooeyGlass(options: GooeyGlassOptions) {
       if(!drop.box) continue;
       const {width, height, radius} = drop.box;
       // the rim is a third of the smaller side at most, so a small drop keeps a flat middle; the pull goes with it
-      const bezel = Math.max(6, Math.min(BEZEL, Math.min(width, height) * .3));
-      drop.filter?.update(width, height, drawMap(width, height, radius, bezel), MAX_PULL * bezel / BEZEL);
+      const bezel = Math.max(6, Math.min(options.bezel ? Math.min(width, height) * options.bezel : BEZEL, Math.min(width, height) * (options.bezel ?? .3)));
+      drop.filter?.update(width, height, drawMap(width, height, radius, bezel), MAX_PULL * bezel / BEZEL * (options.bend ?? 1));
       drop.mapped = `${width}x${height}`;
       setRefracting(drop, true);
     }
