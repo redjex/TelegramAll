@@ -25,6 +25,8 @@ import isAnchoredEphemeralMessage from '@appManagers/utils/messages/isAnchoredEp
 import {BubbleTimelineKey, compareBubbleTimelineKeys, isPendingTimelineMessage, makeBubbleTimelineKey} from '@components/chat/bubbleTimelineOrder';
 import filterReplyMarkupRows from '@components/chat/bubbleParts/filterReplyMarkupRows';
 import updateChatThreadSeparators from '@components/chat/bubbleParts/updateChatThreadSeparators';
+import Modes from '@config/modes';
+import buttonKeyDown from '@helpers/solid/buttonKeyDown';
 
 
 type GroupItem = {
@@ -114,6 +116,9 @@ export class BubbleGroup {
     const fwdFromName = getFwdFromName(fwdFrom);
     const isForwardFromChannel = isMessage(message) && message.from_id && message.from_id._ === 'peerChannel' && message.fromId === fwdFromId;
     const currentPeerId = this.chat.peerId;
+    const senderId = isMessage(message) ?
+      message.fromId || (fwdFromName ? NULL_PEER_ID : message.pFlags.out ? rootScope.myId : currentPeerId) :
+      undefined;
 
     const getPeerIdForLog = (log: AdminLog) => {
       const entry = this.chat.bubbles.resolveAdminLogUnsafe({log, noJsx: true});
@@ -131,7 +136,7 @@ export class BubbleGroup {
     const peerId =
       (
         isMessage(message) ?
-          ((fwdFrom && (/* currentPeerId === rootScope.myId ||  */currentPeerId === REPLIES_PEER_ID || currentPeerId === VERIFICATION_CODES_BOT_ID) && !fwdFromName) || isForwardFromChannel ? fwdFromId : message.fromId) :
+          ((fwdFrom && (/* currentPeerId === rootScope.myId ||  */currentPeerId === REPLIES_PEER_ID || currentPeerId === VERIFICATION_CODES_BOT_ID) && !fwdFromName) || isForwardFromChannel ? fwdFromId : senderId) :
           getPeerIdForLog(message)
       ) ||
       NULL_PEER_ID;
@@ -150,6 +155,7 @@ export class BubbleGroup {
     }
 
     this.avatarContainer.remove();
+    this.container.classList.remove('has-avatar');
     this.avatarLoadPromise = this.avatar = this.avatarContainer = undefined;
     --this.offset;
   }
@@ -163,12 +169,18 @@ export class BubbleGroup {
 
     this.avatarContainer = document.createElement('div');
     this.avatarContainer.classList.add('bubbles-group-avatar-container');
+    this.container.classList.add('has-avatar');
     ++this.offset;
 
     this.avatar = avatarNew({
       middleware: this.middlewareHelper.get(),
       size: 40,
       lazyLoadQueue: this.chat.bubbles.lazyLoadQueue,
+      props: this.chat.isPreview ? undefined : {
+        role: 'button',
+        tabIndex: Modes.a11y ? 0 : undefined,
+        onKeyDown: buttonKeyDown
+      },
       ...(options || this.getAvatarOptions(message))
     });
     this.avatar.node.classList.add('bubbles-group-avatar', 'user-avatar'/* , 'can-zoom-fade' */);

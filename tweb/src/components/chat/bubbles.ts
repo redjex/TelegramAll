@@ -219,7 +219,7 @@ import {
   shouldHidePeerMessageLinks
 } from '@components/chat/bubbles/hiddenLinks';
 import ejectBubble from '@components/chat/bubbles/ejectBubble';
-import {generateTail, getGuestChatViaFromId, getMid, isGuestChatMessage, isMessage, isMessageForVerificationBot, isVerificationBot} from '@components/chat/utils';
+import {generateTail, getGuestChatViaFromId, getMid, isMessage, isMessageForVerificationBot, isVerificationBot} from '@components/chat/utils';
 import {ChecklistBubble} from '@components/chat/bubbles/checklist';
 import {getRestrictionReason} from '@helpers/restrictions';
 import {isMessageSensitive} from '@appManagers/utils/messages/isMessageRestricted';
@@ -2644,10 +2644,10 @@ export default class ChatBubbles {
       finishPeerChange?.();
       if(finishPeerChange) {
         this.bubbleGroups.groups.forEach((group) => {
-          if(!this.chat.isLikeGroup) {
-            group.destroyAvatar();
-          } else if(this.isAvatarNeeded(group.firstItem.message)) {
+          if(this.isAvatarNeeded(group.firstItem.message)) {
             group.createAvatar(group.firstItem.message);
+          } else {
+            group.destroyAvatar();
           }
         });
       }
@@ -13851,10 +13851,8 @@ export default class ChatBubbles {
       else return false;
     }
 
-    if(isMessageForVerificationBot(message)) return true;
-    // * guest-chat messages carry the guest bot's avatar even in a 1-on-1 chat
-    if(isGuestChatMessage(message)) return true;
-    return this.chat.isLikeGroup && !this.chat.isOutMessage(message);
+    // Every regular sender group has one avatar, including our own and private chats.
+    return message?._ === 'message';
   }
 
   private reload() {
