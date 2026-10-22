@@ -17,6 +17,16 @@
   // coordinates and the overlay's `overflow: auto` can't spawn a stray scrollbar.
   padding: 0;
 
+  // Let a hover preview's source row stay under the pointer. Its content remains
+  // interactive, while the fullscreen popup host must not cover the chat list.
+  &.is-hover-preview {
+    pointer-events: none;
+
+    .popup-container {
+      pointer-events: auto;
+    }
+  }
+
   .popup-container {
     position: absolute;
     top: var(--preview-top, 50%);

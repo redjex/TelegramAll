@@ -89,6 +89,9 @@ import {AppChatFoldersTab} from '@components/solidJsTabs/tabs';
 import eachTimeout from '@helpers/eachTimeout';
 import showSharedFolderInvitePopup from '@components/popups/sharedFolderInvite';
 import showChatPreviewPopup, {chatPreviewAnchorFromDialogRow} from '@components/popups/chatPreview';
+import attachDialogAvatarHover from '@helpers/dom/attachDialogAvatarHover';
+import overlayCounter from '@helpers/overlayCounter';
+import contextMenuController from '@helpers/contextMenuController';
 import showLimitPopup from '@components/popups/limit';
 import StoriesList from '@components/stories/list';
 import {render} from 'solid-js/web';
@@ -2289,6 +2292,28 @@ export class AppDialogsManager {
 
     const setPeerFunc = (openInner ? appImManager.setInnerPeer : appImManager.setPeer).bind(appImManager);
 
+    const previewChat = (elem: HTMLElement, hover = false) => {
+      const peerId = elem.dataset.peerId.toPeerId();
+      const monoforumParentPeerId = +elem.dataset.monoforumParentPeerId || undefined;
+      showChatPreviewPopup({
+        peerId: monoforumParentPeerId || peerId,
+        monoforumThreadId: monoforumParentPeerId ? peerId : undefined,
+        threadId: +elem.dataset.threadId || undefined,
+        lastMsgId: +elem.dataset.mid || undefined,
+        anchor: chatPreviewAnchorFromDialogRow(elem),
+        hoverSource: hover ? elem : undefined
+      });
+    };
+
+    if(!autonomous) {
+      attachDialogAvatarHover({
+        list,
+        canOpen: () => !selection.isSelecting && !overlayCounter.isOverlayActive &&
+          !contextMenuController.isOpened() && !PopupElementTsx.POPUPS.length,
+        onOpen: (elem) => previewChat(elem, true)
+      });
+    }
+
     const findAvatarWithStories = (target: EventTarget) => {
       return (target as HTMLElement).closest('.avatar.has-stories') as HTMLElement;
     };
@@ -2404,13 +2429,7 @@ export class AppDialogsManager {
       // Snapshot the anchor *now* — virtual scroll reuses DOM nodes and may yank this
       // element offscreen by the time the popup constructor runs.
       if(e.shiftKey && !e.ctrlKey && !e.metaKey && !autonomous) {
-        showChatPreviewPopup({
-          peerId: monoforumParentPeerId || peerId,
-          monoforumThreadId: monoforumParentPeerId ? peerId : undefined,
-          threadId,
-          lastMsgId,
-          anchor: chatPreviewAnchorFromDialogRow(elem)
-        });
+        previewChat(elem);
         cancelEvent(e);
         return;
       }
