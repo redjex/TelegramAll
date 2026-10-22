@@ -19,6 +19,8 @@ import {appState} from '@stores/appState';
 import useIsNightTheme from '@hooks/useIsNightTheme';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
 import ListenerSetter from '@helpers/listenerSetter';
+import keepHoverPreviewOpen from '@helpers/dom/keepHoverPreviewOpen';
+import classNames from '@helpers/string/classNames';
 
 export type ChatPreviewAnchor = HTMLElement | {x: number, y: number} | {
   x: number, y: number, left: number, right: number, top: number, bottom: number
@@ -29,7 +31,8 @@ export type ChatPreviewOptions = {
   threadId?: number,
   monoforumThreadId?: number,
   lastMsgId?: number,
-  anchor?: ChatPreviewAnchor
+  anchor?: ChatPreviewAnchor,
+  hoverSource?: HTMLElement
 };
 
 /**
@@ -76,6 +79,7 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
   // `chat.beforeDestroy()` while `onCleanup` (fires after the animation, inside Inner) does
   // the full teardown.
   let chatRef: Chat | undefined;
+  let disposeHover: () => void;
 
   function Inner() {
     const context = useContext(PopupContext);
@@ -140,6 +144,14 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
     onMount(() => {
       positionFromAnchor(options.anchor);
 
+      if(options.hoverSource) {
+        disposeHover = keepHoverPreviewOpen({
+          source: options.hoverSource,
+          preview: containerEl,
+          onClose: handle.hide
+        });
+      }
+
       // setPeer triggers Chat.init() synchronously on the first call, which builds the
       // ChatInput tree (including the chat-input-control plate). After this returns the
       // plate exists; injecting now wires up our button into the centre slot before any
@@ -167,6 +179,7 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
 
     onCleanup(() => {
       listenerSetter.removeAll();
+      disposeHover?.();
       disposeResize?.();
       disposeWindowChange?.();
       chat.destroy();
@@ -355,12 +368,15 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
   // backdrop and reads as misplaced.
   createPopup(() => (
     <PopupElement
-      class="popup-chat-preview"
-      withoutOverlay={!mediaSizes.isMobile}
+      class={classNames('popup-chat-preview', options.hoverSource && 'is-hover-preview')}
+      withoutOverlay={!!options.hoverSource || !mediaSizes.isMobile}
       show={show()}
       kind={CHAT_PREVIEW_POPUP_KIND}
       containerProps={{ref: (el: HTMLDivElement) => containerEl = el, 'aria-label': I18n.format('AccDescr.ChatPreview', true)}}
-      onClose={() => chatRef?.beforeDestroy()}
+      onClose={() => {
+        disposeHover?.();
+        chatRef?.beforeDestroy();
+      }}
     >
       <Inner />
     </PopupElement>
