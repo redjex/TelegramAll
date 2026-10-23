@@ -6155,10 +6155,6 @@ export default class ChatBubbles {
       savedPosition
     };
 
-    if(this.chat.isBroadcast && this.chat.type === ChatType.Chat/*  && false */) {
-      this.loadSponsoredMessages();
-    }
-
     if(!samePeer) {
       this.ranks = undefined;
       this.processRanks = undefined;

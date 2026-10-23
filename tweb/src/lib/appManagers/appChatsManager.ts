@@ -1353,20 +1353,8 @@ export class AppChatsManager extends AppManager {
     });
   }
 
-  public getSponsoredPeers(q: string) {
-    return this.apiManager.invokeApiSingleProcess({
-      method: 'contacts.getSponsoredPeers',
-      params: {q},
-      processResult: (result) => {
-        if(result._ === 'contacts.sponsoredPeersEmpty') return []
-        this.appUsersManager.saveApiUsers(result.users);
-        this.appChatsManager.saveApiChats(result.chats);
-        return result.peers.map((peer) => ({
-          ...peer,
-          peer: getPeerId(peer.peer)
-        }));
-      }
-    })
+  public getSponsoredPeers(_q: string): Promise<MySponsoredPeer[]> {
+    return Promise.resolve([]);
   }
 
   private adminLogsFetcherMap = new Map<ChatId, SlicedCachedFetcher<AdminLog>>;
