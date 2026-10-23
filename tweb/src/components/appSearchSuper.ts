@@ -66,7 +66,7 @@ import wrapVideo from '@components/wrappers/video';
 import attachMediaPeekListeners, {getMessageMediaPeekSource} from '@components/mediaPeek';
 import wrapMediaSpoiler, {hasMediaSpoiler, hasSensitiveSpoiler, onMediaSpoilerClick} from '@components/wrappers/mediaSpoiler';
 import filterAsync from '@helpers/array/filterAsync';
-import ChatContextMenu, {getSponsoredMessageButtons} from '@components/chat/contextMenu';
+import ChatContextMenu from '@components/chat/contextMenu';
 import {addToProfileMusic, getSavedMusicDocument, removeFromProfileMusic} from '@components/savedMusicActions';
 import {useIsFrozen} from '@stores/appState';
 import getParticipantRank from '@appManagers/utils/chats/getParticipantRank';
@@ -90,7 +90,6 @@ import {ALL_COLLECTIONS_ID, StarGiftsProfileActions, StarGiftsProfileStore} from
 import {getFirstChild} from '@solid-primitives/refs';
 import SortedDialogList from '@components/sortedDialogList';
 import Icon from '@components/icon';
-import {showAdReport} from '@components/popups/reportAd';
 import ButtonMenuToggle from '@components/buttonMenuToggle';
 import {isSensitive} from '@helpers/restrictions';
 import {isMessageSensitive} from '@appManagers/utils/messages/isMessageRestricted';
@@ -1742,57 +1741,6 @@ export default class AppSearchSuper {
         .then((contacts) => {
           if(contacts) {
             setResults(contacts, this.searchGroups.contacts, true);
-          }
-        }),
-
-        this.managers.appChatsManager.getSponsoredPeers(query)
-        .then(onLoad)
-        .then((peers) => {
-          if(!peers?.length) return;
-
-          for(const peer of peers.reverse()) {
-            const {dom} = appDialogsManager.addDialogNew({
-              peerId: peer.peer,
-              container: this.searchGroups.globalContacts.list,
-              append: false,
-              avatarSize: 'abitbigger',
-              autonomous: this.searchGroups.globalContacts.autonomous,
-              wrapOptions: {
-                middleware
-              }
-            });
-
-            dom.containerEl.dataset.sponsored = 'true';
-
-            const chip = ButtonMenuToggle({
-              listenerSetter: this.listenerSetter,
-              appendTo: getOverlayRoot(),
-              buttons: getSponsoredMessageButtons({
-                message: peer,
-                handleReportAd: () => {
-                  showAdReport(peer);
-                }
-              }),
-              onOpen: (e, element) => {
-                // position menu
-                const rect = chip.getBoundingClientRect();
-                const bodyRect = getOverlayRoot().getBoundingClientRect();
-                // * `bottom-left` holds the menu by its inline end, the chip's end edge - its left one in RTL
-                element.style.insetInlineEnd = `${I18n.getIsRTL() ? rect.left : bodyRect.width - (rect.left + rect.width)}px`;
-                element.style.top = `${rect.top + rect.height + 8}px`;
-              },
-              direction: 'bottom-left'
-            });
-            chip.classList.add('sponsored-peer-chip');
-
-            chip.replaceChildren(
-              i18n('SponsoredMessageAd'),
-              Icon('more')
-            )
-
-            dom.lastTimeSpan.appendChild(chip)
-
-            addDialogSubtitle(dom, peer.peer);
           }
         }),
 

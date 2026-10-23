@@ -18,7 +18,6 @@ import createChatRemoveFeePlate, {ChatRemoveFeePlate} from '@components/chat/rem
 import createChatLivePlate, {ChatLivePlate} from '@components/chat/topbarLive/container';
 import createChatGroupCallPlate, {ChatGroupCallPlate} from '@components/chat/topbarGroupCall/container';
 import createChatTranslationPlate, {ChatTranslationPlate} from '@components/chat/translation';
-import createChatSponsoredPlate, {ChatSponsoredPlate} from '@components/chat/topbarSponsored';
 import {TopbarPlateController} from '@components/chat/topbarPlate';
 import createChatAutomationPlate, {ChatAutomationPlate} from '@components/chat/chatAutomation';
 
@@ -30,7 +29,6 @@ export type TopbarPlates = {
   live: ChatLivePlate | undefined,
   groupCall: ChatGroupCallPlate | undefined,
   translation: ChatTranslationPlate,
-  sponsored: ChatSponsoredPlate,
   /** Ordered list of all constructed plates. Used by `topbar.setFloating`. */
   all: TopbarPlateController[],
   /** Mount every plate's container into the given host. */
@@ -50,10 +48,9 @@ export function createTopbarPlates(
   const groupCall = IS_GROUP_CALL_SUPPORTED ? createChatGroupCallPlate(topbar, chat, managers) : undefined;
   const translation = createChatTranslationPlate(topbar, chat, managers);
   const removeFee = createChatRemoveFeePlate(topbar, chat, managers);
-  const sponsored = createChatSponsoredPlate(topbar, chat, managers);
 
   // Order matches the visual stack inside `floatingPlatesWrapper`.
-  const all = [requests, actions, automation, live, groupCall, translation, removeFee, sponsored].filter(Boolean);
+  const all = [requests, actions, automation, live, groupCall, translation, removeFee].filter(Boolean);
 
   return {
     requests,
@@ -63,7 +60,6 @@ export function createTopbarPlates(
     live,
     groupCall,
     translation,
-    sponsored,
     all,
     mount: (host) => host.append(...all.map((plate) => plate.container)),
     destroy: () => all.forEach((plate) => plate.destroy())

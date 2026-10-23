@@ -1523,7 +1523,6 @@ export default class ChatTopbar {
       this.plates.live?.setPeerId(peerId);
       this.plates.groupCall?.setPeerId(peerId);
       this.plates.translation.setPeerId(peerId);
-      this.plates.sponsored.setPeerId(peerId);
 
       callbackify(setRequestsCallback.result, (callback) => {
         if(!middleware()) {
