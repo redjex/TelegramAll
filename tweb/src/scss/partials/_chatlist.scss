@@ -475,6 +475,11 @@ ul.chatlist {
     position: relative; // for z-index
   }
 
+  // Avatar hover previews need the avatar itself to receive pointer events.
+  &.chatlist-avatar-hover .dialog-avatar {
+    pointer-events: auto;
+  }
+
   .user-title {
     display: flex !important;
     align-items: center;

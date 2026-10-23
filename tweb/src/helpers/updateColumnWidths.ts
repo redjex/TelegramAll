@@ -9,7 +9,7 @@
  *                                  computed from: viewport, user preference,
  *                                  open-tabs state.
  *   --left-column-width           the width #column-left occupies in layout
- *                                  flow (what neighbors — chat translateX —
+ *                                  flow (what neighbors — the chat's inset —
  *                                  should respect). Differs from
  *                                  --left-column-visual-width while the
  *                                  sidebar is collapsed-with-tabs-open: the
@@ -30,7 +30,7 @@
  *                                  a max-width.
  *   --right-sidebar-fits          viewport threshold (px) at which the right
  *                                  column can dock at default size without
- *                                  overlapping a CHAT_WIDTH_MAX-wide chat.
+ *                                  overlapping a usable conversation.
  *                                  Exposed for any SCSS consumer that needs
  *                                  to react to the same threshold the JS
  *                                  layout decision uses; @media queries
@@ -95,10 +95,8 @@ const PAGE_CHATS_PADDING = PAGE_CHATS_PADDING_ROOT_DESKTOP;
 // `--chat-width` CSS variable (clamped to the actually-available middle
 // column width on narrower viewports).
 const CHAT_WIDTH_MAX = 696;
-// Extra spacing used inside the right-sidebar-fit equation — historical
-// `+ 64px` from $right-sidebar-fits, kept as-is so the threshold doesn't
-// shift.
-const RIGHT_SIDEBAR_FITS_EXTRA = 64;
+// Let the conversation shrink beside the information panel before it overlays.
+const MIN_CHAT_WIDTH = 320;
 
 const STORAGE_KEY_LEFT = 'sidebar-left-width';
 const STORAGE_KEY_RIGHT = 'sidebar-right-width';
@@ -254,9 +252,22 @@ const last = {
   rightSidebarFits: -1,
   pageChatsPaddingRoot: -1,
   pageChatsPaddingChat: -1,
-  floats: undefined as boolean | undefined
+  floats: undefined as boolean | undefined,
+  rightSidebarAvailable: undefined as boolean | undefined
 };
 let installed = false;
+const rightSidebarAvailabilityListeners = new Set<(available: boolean) => void>();
+
+export function canShowRightSidebar(): boolean {
+  // On handhelds the profile is its own screen, not a panel beside messages.
+  return mediaSizes.isMobile || last.floats === false;
+}
+
+export function onRightSidebarAvailabilityChange(callback: (available: boolean) => void) {
+  rightSidebarAvailabilityListeners.add(callback);
+  callback(canShowRightSidebar());
+  return () => rightSidebarAvailabilityListeners.delete(callback);
+}
 
 export default function updateColumnWidths(): void {
   const root = document.documentElement;
@@ -282,40 +293,35 @@ export default function updateColumnWidths(): void {
   const visualLeftWidth = computeVisualLeftWidth();
   const layoutLeftWidth = computeLayoutLeftWidth();
   const rightWidth = computeRightWidth();
+  const isFloatingLeft = mediaSizes.isLessThanFloatingLeftSidebar && !isMobile;
   // Whether the right column can dock without overlapping the chat. The
   // threshold is the sum of every horizontal piece currently in the docked
   // layout, so resizing either column (or collapsing the left, or toggling
   // the folders panel) immediately re-evaluates the floats decision.
   const foldersOffset = foldersSidebarShown ? FOLDERS_SIDEBAR_OFFSET : 0;
-  const rightColumnFits = foldersOffset + layoutLeftWidth + rightWidth + CHAT_WIDTH_MAX + PAGE_CHATS_PADDING * 4;
-  // Handheld is a slider — the right column overlays the chat, so it
-  // always floats. Without this body.right-column-floats stays off and the
-  // `.bubbles-inner { width: calc(100% - var(--right-column-width) ...) }`
-  // rule in _chat.scss subtracts the right column from the chat width,
-  // collapsing the messages column to 0 / a tiny centered strip.
+  const reservedLeft = isFloatingLeft ? 0 : foldersOffset + layoutLeftWidth;
+  const rightColumnFits = reservedLeft + rightWidth + MIN_CHAT_WIDTH + PAGE_CHATS_PADDING * 4;
+  // Handheld keeps its full-screen slider. Wider layouts dock the panel
+  // whenever at least MIN_CHAT_WIDTH remains for the conversation.
   const floats = isMobile || availableWidth < rightColumnFits;
   const middleWidth = isMobile ? vw : availableWidth - PAGE_CHATS_PADDING * 2;
   // Chat content max width — fills the viewport on handheld (single-column
   // slider) and caps at CHAT_WIDTH_MAX otherwise. It also never exceeds the
   // space actually free beside the left column: in the docked-left range
   // (>925px) the left column + folders panel sit in-flow and the chat is
-  // centred in the gap to their right (see #column-center translateX in
-  // _chat.scss). Subtract them plus 3 paddings — the page's left inset and the
+  // placed in the gap to their right. Subtract them plus 3 paddings — the page's left inset and the
   // two 16px gutters that flank the chat once it's clamped — so the chat keeps
   // a symmetric gap on both sides and a wide/resized left column reclaims width
   // from it. Uses availableWidth (not vw) so the iOS safe-area inset doesn't
   // eat the left gap on landscape iPhones. In the floating-drawer range
   // (601-925) and on mobile the left column overlays the chat, which keeps
   // full width.
-  const isFloatingLeft = mediaSizes.isLessThanFloatingLeftSidebar && !isMobile;
   const chatAvailableWidth = (isMobile || isFloatingLeft) ?
     middleWidth :
     availableWidth - foldersOffset - layoutLeftWidth - PAGE_CHATS_PADDING * 3;
   const chatWidth = isMobile ? vw : Math.min(chatAvailableWidth, CHAT_WIDTH_MAX);
-  // Viewport threshold at which the right column can dock at default size
-  // without overlapping a CHAT_WIDTH_MAX chat. Exposed for any caller that
-  // wants to read the same number JS uses for `body.right-column-floats`.
-  const rightSidebarFits = DEFAULT_COLUMN_WIDTH * 2 + CHAT_WIDTH_MAX + RIGHT_SIDEBAR_FITS_EXTRA;
+  // Expose the same threshold used for body.right-column-floats.
+  const rightSidebarFits = rightColumnFits;
   // Outer chrome — split into two scopes so left/right sidebars can drop
   // to 0 on handheld (full-screen slider) while the chat keeps an 8px
   // breathing room for the floating topbar / chat-input plates.
@@ -376,6 +382,11 @@ export default function updateColumnWidths(): void {
   if(last.floats !== floats) {
     document.body.classList.toggle('right-column-floats', floats);
     last.floats = floats;
+  }
+  const rightSidebarAvailable = canShowRightSidebar();
+  if(last.rightSidebarAvailable !== rightSidebarAvailable) {
+    last.rightSidebarAvailable = rightSidebarAvailable;
+    rightSidebarAvailabilityListeners.forEach((callback) => callback(rightSidebarAvailable));
   }
 }
 

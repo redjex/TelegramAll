@@ -64,6 +64,11 @@
     body.resizing-right-sidebar & {
 			transition: none !important;
 		}
+
+    // No overlay fallback on desktop when a usable conversation cannot fit.
+    body.right-column-floats & {
+      display: none !important;
+    }
   }
 
   .sidebar-header {

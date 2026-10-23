@@ -19,6 +19,8 @@ import {appState} from '@stores/appState';
 import useIsNightTheme from '@hooks/useIsNightTheme';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
 import ListenerSetter from '@helpers/listenerSetter';
+import keepHoverPreviewOpen from '@helpers/dom/keepHoverPreviewOpen';
+import classNames from '@helpers/string/classNames';
 
 export type ChatPreviewAnchor = HTMLElement | {x: number, y: number} | {
   x: number, y: number, left: number, right: number, top: number, bottom: number
@@ -29,7 +31,8 @@ export type ChatPreviewOptions = {
   threadId?: number,
   monoforumThreadId?: number,
   lastMsgId?: number,
-  anchor?: ChatPreviewAnchor
+  anchor?: ChatPreviewAnchor,
+  hoverSource?: HTMLElement
 };
 
 /**
@@ -57,6 +60,14 @@ export function chatPreviewAnchorFromDialogRow(li: HTMLElement): ChatPreviewAnch
 }
 
 export const CHAT_PREVIEW_POPUP_KIND = Symbol('chat-preview-popup');
+const hoverSources = new WeakSet<HTMLElement>();
+
+export function canHoverChatPreview(source: HTMLElement) {
+  return !hoverSources.has(source) && PopupElement.POPUPS.every((popup) =>
+    popup.kind === CHAT_PREVIEW_POPUP_KIND &&
+    (popup.destroyed || popup.element?.classList.contains('is-hover-preview'))
+  );
+}
 
 const PREVIEW_W = 432;
 const PREVIEW_H = 540;
@@ -67,6 +78,7 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
 
   // Shift+clicking through several dialogs in a row should swap the preview, not stack them.
   PopupElement.getPopups(CHAT_PREVIEW_POPUP_KIND).forEach((p) => p.hide());
+  if(options.hoverSource) hoverSources.add(options.hoverSource);
 
   const [show, setShow] = createSignal(true);
   const handle = {hide: () => setShow(false)};
@@ -76,6 +88,7 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
   // `chat.beforeDestroy()` while `onCleanup` (fires after the animation, inside Inner) does
   // the full teardown.
   let chatRef: Chat | undefined;
+  let disposeHover: () => void;
 
   function Inner() {
     const context = useContext(PopupContext);
@@ -140,6 +153,14 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
     onMount(() => {
       positionFromAnchor(options.anchor);
 
+      if(options.hoverSource) {
+        disposeHover = keepHoverPreviewOpen({
+          source: options.hoverSource,
+          preview: containerEl,
+          onClose: handle.hide
+        });
+      }
+
       // setPeer triggers Chat.init() synchronously on the first call, which builds the
       // ChatInput tree (including the chat-input-control plate). After this returns the
       // plate exists; injecting now wires up our button into the centre slot before any
@@ -167,6 +188,7 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
 
     onCleanup(() => {
       listenerSetter.removeAll();
+      disposeHover?.();
       disposeResize?.();
       disposeWindowChange?.();
       chat.destroy();
@@ -355,12 +377,22 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
   // backdrop and reads as misplaced.
   createPopup(() => (
     <PopupElement
-      class="popup-chat-preview"
-      withoutOverlay={!mediaSizes.isMobile}
+      class={classNames('popup-chat-preview', options.hoverSource && 'is-hover-preview')}
+      withoutOverlay={!!options.hoverSource || !mediaSizes.isMobile}
       show={show()}
       kind={CHAT_PREVIEW_POPUP_KIND}
-      containerProps={{ref: (el: HTMLDivElement) => containerEl = el, 'aria-label': I18n.format('AccDescr.ChatPreview', true)}}
-      onClose={() => chatRef?.beforeDestroy()}
+      containerProps={{
+        ref: (el: HTMLDivElement) => {
+          containerEl = el;
+          el.dataset.peerId = '' + options.peerId;
+        },
+        'aria-label': I18n.format('AccDescr.ChatPreview', true)
+      }}
+      onClose={() => {
+        if(options.hoverSource) hoverSources.delete(options.hoverSource);
+        disposeHover?.();
+        chatRef?.beforeDestroy();
+      }}
     >
       <Inner />
     </PopupElement>
