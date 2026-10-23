@@ -15145,107 +15145,21 @@ export class AppMessagesManager extends AppManager {
     return this.factCheckBatcher.addToBatch(peerId, mid);
   }
 
-  public reportSponsoredMessage(randomId: SponsoredMessage['random_id'], option: Uint8Array) {
-    return this.apiManager.invokeApi('messages.reportSponsoredMessage', {
-      random_id: randomId,
-      option
-    });
+  // TelegramAll does not fetch ads or send advertising interaction events.
+  public reportSponsoredMessage(_randomId: SponsoredMessage['random_id'], _option: Uint8Array): Promise<never> {
+    return Promise.reject(new Error('Sponsored messages are disabled'));
   }
 
-  public async getSponsoredMessage(peerId: PeerId): Promise<MessagesSponsoredMessages> {
-    // return Promise.resolve({
-    //   '_': 'messages.sponsoredMessages',
-    //   'posts_between': 5,
-    //   'messages': Array.from({length: 5}, () => ({
-    //     '_': 'sponsoredMessage',
-    //     'pFlags': {},
-    //     'flags': 9,
-    //     'random_id': new Uint8Array([80, 5, 249, 174, 44, 73, 173, 14, 246, 81, 187, 182, 223, 5, 4, 128]),
-    //     'from_id': {
-    //       '_': 'peerUser',
-    //       'user_id': 983000232
-    //     },
-    //     'message': 'This is a long sponsored message. In fact, it has the maximum length allowed on the platform – 160 characters 😬😬. It\'s promoting a bot with a start parameter.' + peerId,
-    //     'url': 'https://t.me/QuizBot?start=GreatMinds',
-    //     'title': 'QuizBot',
-    //     'button_text': 'Start'
-    //   })),
-    //   'chats': [],
-    //   'users': [
-    //     {
-    //       '_': 'user',
-    //       'pFlags': {
-    //         'bot': true,
-    //         'verified': true,
-    //         'apply_min_photo': true
-    //       },
-    //       'flags': 34226219,
-    //       'id': 983000232,
-    //       'access_hash': '-294959558742535650',
-    //       'first_name': 'Quiz Bot',
-    //       'username': 'QuizBot',
-    //       'photo': {
-    //         '_': 'userProfilePhoto',
-    //         'pFlags': {},
-    //         'flags': 2,
-    //         'photo_id': '4221953848856651689',
-    //         'stripped_thumb': new Uint8Array([1, 8, 8, 155, 247, 95, 103, 255, 0, 110, 138, 40, 174, 132, 142, 6, 238, 127]),
-    //         'dc_id': 2
-    //       },
-    //       'bot_info_version': 11,
-    //       'bot_inline_placeholder': 'Search a quiz...',
-    //       'sortName': 'quiz bot'
-    //     }
-    //   ]
-    // });
-
-    // * don't show sponsored messages in own channels
-    if(!peerId.isUser() && await this.canSendToPeer(peerId)) {
-      return Promise.resolve({
-        _: 'messages.sponsoredMessagesEmpty'
-      });
-    }
-
-    const promise = this.apiManager.invokeApiCacheable('messages.getSponsoredMessages', {
-      peer: this.appPeersManager.getInputPeerById(peerId)
-    }, {cacheSeconds: 300});
-
-    return promise.then((sponsoredMessages) => {
-      if(sponsoredMessages._ !== 'messages.sponsoredMessages') {
-        return sponsoredMessages;
-      }
-
-      this.appPeersManager.saveApiPeers(sponsoredMessages);
-
-      const sponsoredMessage = sponsoredMessages.messages.shift();
-      sponsoredMessages.messages.push(sponsoredMessage);
-
-      sponsoredMessages.messages.forEach((sponsoredMessage) => {
-        if(sponsoredMessage.photo) {
-          sponsoredMessage.photo = this.appPhotosManager.savePhoto(sponsoredMessage.photo);
-        }
-
-        if(sponsoredMessage.media) {
-          this.saveMessageMedia(sponsoredMessage, 'media', undefined);
-        }
-
-        // sponsoredMessage.pFlags.can_report = true;
-      });
-
-      return sponsoredMessages;
-    });
+  public getSponsoredMessage(_peerId: PeerId): Promise<MessagesSponsoredMessages> {
+    return Promise.resolve({_: 'messages.sponsoredMessagesEmpty'});
   }
 
-  public viewSponsoredMessage(randomId: SponsoredMessage['random_id']) {
-    return this.apiManager.invokeApiSingle('messages.viewSponsoredMessage', {
-      random_id: randomId
-    });
+  public viewSponsoredMessage(_randomId: SponsoredMessage['random_id']) {
+    return Promise.resolve(false);
   }
 
-  public clickSponsoredMessage(randomId: SponsoredMessage['random_id']) {
-    return this.apiManager.invokeApiSingle('messages.clickSponsoredMessage', {
-      random_id: randomId
-    });
+  public clickSponsoredMessage(_randomId: SponsoredMessage['random_id']) {
+    return Promise.resolve(false);
   }
 
   public sendQueuedPaidMessages(peerId: PeerId) {
