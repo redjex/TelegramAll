@@ -4901,6 +4901,7 @@ const lang = {
   'StickerText.Placeholder': 'Текст под стикером',
   'GeneralSettings.Experimental': 'Экспериментальные функции',
   'GeneralSettings.ShowTlSchema': 'Исследовать TL schema',
+  'GeneralSettings.OwnMessagesLeft': 'Мои сообщения слева',
   'GeneralSettings.ShowTlSchema.SearchKeywords': 'developer, mtproto, tl, mtcute, debug, raw message',
   'Message.Context.ViewTlSchema': 'Исследовать TL schema',
   'TlSchema.Title': 'TL Schema',

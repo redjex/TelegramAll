@@ -226,7 +226,7 @@ export class ThemeController {
     // here whenever `settings.theme` changes (radio in General Settings, switchTheme calls).
     const themeKey = joinDeepPath('settings', 'theme');
     rootScope.addEventListener('settings_updated', ({key, value}) => {
-      if(key === joinDeepPath('settings', 'increaseContrast')) {
+      if(key === joinDeepPath('settings', 'increaseContrast') || key === joinDeepPath('settings', 'ownMessagesLeft')) {
         this.setTheme();
         return;
       }
@@ -340,6 +340,7 @@ export class ThemeController {
       (window as any).Capacitor?.Plugins?.StatusBar?.setStyle({style: isNight ? 'DARK' : 'LIGHT'})?.catch?.(() => {});
     } catch{}
     document.documentElement.classList.toggle('high-contrast', this.isHighContrast());
+    document.documentElement.classList.toggle('own-messages-left', !!useAppSettings()[0].ownMessagesLeft);
     this.setThemeColor();
     const theme = this.getTheme();
     this.applyTheme(theme);

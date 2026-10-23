@@ -100,6 +100,8 @@ export type StateSettings = {
   increaseContrast: boolean,
   /** Adds "View TL Schema" to the message context menu. */
   showTlSchema: boolean,
+  /** Draws the user's own messages on the left, like incoming ones. */
+  ownMessagesLeft: boolean,
   // Last explicitly-picked theme variant on each side. The burger-menu Dark-Mode toggle uses
   // these so toggling away and back returns to the same variant (e.g. tinted ↔ classic ↔ tinted)
   // instead of always flipping to the legacy night/classic pair. Updated in themeController on
@@ -510,6 +512,7 @@ export const SETTINGS_INIT: StateSettings = {
   theme: 'system',
   increaseContrast: false,
   showTlSchema: false,
+  ownMessagesLeft: false,
   lastThemeNames: {
     dark: 'night',
     light: 'day'

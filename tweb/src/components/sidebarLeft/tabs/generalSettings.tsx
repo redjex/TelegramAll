@@ -357,6 +357,12 @@ const ExperimentalSection = () => {
         </Row.CheckboxFieldToggle>
         <Row.Title>{i18n('GeneralSettings.ShowTlSchema')}</Row.Title>
       </Row>
+      <Row>
+        <Row.CheckboxFieldToggle>
+          <CheckboxFieldTsx stateKey={joinDeepPath('settings', 'ownMessagesLeft')} toggle />
+        </Row.CheckboxFieldToggle>
+        <Row.Title>{i18n('GeneralSettings.OwnMessagesLeft')}</Row.Title>
+      </Row>
     </Section>
   );
 };
