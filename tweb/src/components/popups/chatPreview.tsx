@@ -60,6 +60,14 @@ export function chatPreviewAnchorFromDialogRow(li: HTMLElement): ChatPreviewAnch
 }
 
 export const CHAT_PREVIEW_POPUP_KIND = Symbol('chat-preview-popup');
+const hoverSources = new WeakSet<HTMLElement>();
+
+export function canHoverChatPreview(source: HTMLElement) {
+  return !hoverSources.has(source) && PopupElement.POPUPS.every((popup) =>
+    popup.kind === CHAT_PREVIEW_POPUP_KIND &&
+    (popup.destroyed || popup.element?.classList.contains('is-hover-preview'))
+  );
+}
 
 const PREVIEW_W = 432;
 const PREVIEW_H = 540;
@@ -70,6 +78,7 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
 
   // Shift+clicking through several dialogs in a row should swap the preview, not stack them.
   PopupElement.getPopups(CHAT_PREVIEW_POPUP_KIND).forEach((p) => p.hide());
+  if(options.hoverSource) hoverSources.add(options.hoverSource);
 
   const [show, setShow] = createSignal(true);
   const handle = {hide: () => setShow(false)};
@@ -372,8 +381,15 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
       withoutOverlay={!!options.hoverSource || !mediaSizes.isMobile}
       show={show()}
       kind={CHAT_PREVIEW_POPUP_KIND}
-      containerProps={{ref: (el: HTMLDivElement) => containerEl = el, 'aria-label': I18n.format('AccDescr.ChatPreview', true)}}
+      containerProps={{
+        ref: (el: HTMLDivElement) => {
+          containerEl = el;
+          el.dataset.peerId = '' + options.peerId;
+        },
+        'aria-label': I18n.format('AccDescr.ChatPreview', true)
+      }}
       onClose={() => {
+        if(options.hoverSource) hoverSources.delete(options.hoverSource);
         disposeHover?.();
         chatRef?.beforeDestroy();
       }}

@@ -3,7 +3,7 @@ import ListenerSetter from '@helpers/listenerSetter';
 /** Delegated hover: no listeners or layout reads per dialog, including virtualized rows. */
 export default function attachDialogAvatarHover({list, canOpen, onOpen}: {
   list: HTMLElement,
-  canOpen: () => boolean,
+  canOpen: (row: HTMLElement) => boolean,
   onOpen: (row: HTMLElement) => void
 }) {
   const listeners = new ListenerSetter();
@@ -29,7 +29,7 @@ export default function attachDialogAvatarHover({list, canOpen, onOpen}: {
   ].join(':');
 
   listeners.add(list)('pointerover', (event) => {
-    if(event.pointerType !== 'mouse' || event.buttons || !canOpen()) {
+    if(event.pointerType !== 'mouse' || event.buttons) {
       cancel();
       return;
     }
@@ -41,7 +41,7 @@ export default function attachDialogAvatarHover({list, canOpen, onOpen}: {
     cancel();
     const row = nextAvatar.closest<HTMLElement>('a[data-peer-id]');
     if(!row || !list.contains(row) || !row.dataset.peerId || row.dataset.isAllChats ||
-      target.closest('[data-dialog-list-action]')) return;
+      target.closest('[data-dialog-list-action]') || !canOpen(row)) return;
 
     avatar = nextAvatar;
     const rowKey = getRowKey(row);
@@ -61,7 +61,7 @@ export default function attachDialogAvatarHover({list, canOpen, onOpen}: {
     timeout = win.setTimeout(() => {
       cancel();
       if(nextAvatar.isConnected && list.contains(nextAvatar) && row.contains(nextAvatar) &&
-        getRowKey(row) === rowKey && !doc.hidden && canOpen()) {
+        getRowKey(row) === rowKey && !doc.hidden && canOpen(row)) {
         onOpen(row);
       }
     }, 500);
