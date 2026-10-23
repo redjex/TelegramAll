@@ -88,7 +88,7 @@ import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId'
 import {AppChatFoldersTab} from '@components/solidJsTabs/tabs';
 import eachTimeout from '@helpers/eachTimeout';
 import showSharedFolderInvitePopup from '@components/popups/sharedFolderInvite';
-import showChatPreviewPopup, {chatPreviewAnchorFromDialogRow} from '@components/popups/chatPreview';
+import showChatPreviewPopup, {canHoverChatPreview, chatPreviewAnchorFromDialogRow} from '@components/popups/chatPreview';
 import attachDialogAvatarHover from '@helpers/dom/attachDialogAvatarHover';
 import overlayCounter from '@helpers/overlayCounter';
 import contextMenuController from '@helpers/contextMenuController';
@@ -2308,8 +2308,8 @@ export class AppDialogsManager {
     if(!autonomous) {
       attachDialogAvatarHover({
         list,
-        canOpen: () => !selection.isSelecting && !overlayCounter.isOverlayActive &&
-          !contextMenuController.isOpened() && !PopupElementTsx.POPUPS.length,
+        canOpen: (row) => !selection.isSelecting && !overlayCounter.isOverlayActive &&
+          !contextMenuController.isOpened() && canHoverChatPreview(row),
         onOpen: (elem) => previewChat(elem, true)
       });
     }

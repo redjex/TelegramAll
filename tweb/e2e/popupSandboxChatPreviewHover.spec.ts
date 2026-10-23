@@ -13,7 +13,7 @@ for(const direction of ['ltr', 'rtl'] as const) {
       window.popupSandbox.setDirection(direction);
       const dialogsModule = '/src/lib/appDialogsManager.ts';
       const fixturesModule = '/src/components/popupSandbox/fixtures.ts';
-      const [{DialogElement, default: manager}, {CONTACT_PEER_ID}] = await Promise.all([
+      const [{DialogElement, default: manager}, {CONTACT_PEER_ID, PREMIUM_PEER_ID}] = await Promise.all([
         import(dialogsModule), import(fixturesModule)
       ]);
       const list = manager.createChatList();
@@ -21,12 +21,13 @@ for(const direction of ['ltr', 'rtl'] as const) {
       list.classList.add('sidebar-left');
       list.style.cssText = 'position:fixed;inset-block-start:100px;inset-inline-start:0;width:300px;height:150px;z-index:10';
       const dialog = new DialogElement({peerId: CONTACT_PEER_ID, controlled: true, isMainList: true});
-      list.append(dialog.container);
+      const other = new DialogElement({peerId: PREMIUM_PEER_ID, controlled: true, isMainList: true});
+      list.append(dialog.container, other.container);
       document.body.append(list);
       manager.setListClickListener({list, selection: {isSelecting: false}});
     }, direction);
 
-    const avatar = page.locator('#hover-preview-list .dialog-avatar');
+    const avatar = page.locator('#hover-preview-list .dialog-avatar').first();
     await expect(avatar).toBeVisible();
     const bounds = await avatar.boundingBox();
     const point = {x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2};
@@ -48,7 +49,7 @@ for(const direction of ['ltr', 'rtl'] as const) {
     expect(readWrites).toEqual([]);
 
     // Moving from the avatar across the rest of the contact's card keeps it open.
-    const rowBounds = await page.locator('#hover-preview-list a').boundingBox();
+    const rowBounds = await page.locator('#hover-preview-list a').first().boundingBox();
     await page.mouse.move(rowBounds.x + rowBounds.width / 2, point.y, {steps: 5});
     await page.waitForTimeout(350);
     await expect(popup).toBeVisible();
@@ -79,7 +80,7 @@ for(const direction of ['ltr', 'rtl'] as const) {
     await page.mouse.move(640, 850);
     await expect(page.locator('.popup-chat-preview')).toHaveCount(0);
     // Keyboard/context-menu previews keep their existing explicit-close lifecycle.
-    await page.locator('#hover-preview-list a').click({modifiers: ['Shift']});
+    await page.locator('#hover-preview-list a').first().click({modifiers: ['Shift']});
     await expect(popup).toBeVisible();
     await page.mouse.move(640, 850);
     await page.waitForTimeout(350);
@@ -94,5 +95,22 @@ for(const direction of ['ltr', 'rtl'] as const) {
     await page.mouse.move(640, 20);
     await page.waitForTimeout(550);
     await expect(popup).toHaveCount(0);
+
+    // Switch directly to another avatar and keep still: no leave/re-enter is required.
+    await avatar.hover();
+    await expect(popup).toBeVisible();
+    const previewContent = popup.locator('.popup-container');
+    await expect(previewContent).toHaveAttribute('data-peer-id', '777002');
+    await page.locator('#hover-preview-list .dialog-avatar').nth(1).hover();
+    await expect(popup).toBeVisible();
+    await expect(previewContent).toHaveAttribute('data-peer-id', '777003');
+    await expect(popup).toHaveCount(1);
+    // Returning directly to the first avatar must work too.
+    await avatar.hover();
+    await expect(previewContent).toHaveAttribute('data-peer-id', '777002');
+    await page.waitForTimeout(600);
+    await expect(popup).toHaveCount(1);
+    await page.mouse.move(640, 850);
+    await expect(page.locator('.popup-chat-preview')).toHaveCount(0);
   });
 }

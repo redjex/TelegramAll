@@ -6,7 +6,7 @@ import {MOUNT_CLASS_TO} from '@config/debug';
 import {AppManagers} from '@lib/managers';
 import appNavigationController from '@components/appNavigationController';
 import rootScope from '@lib/rootScope';
-import {installColumnWidthsUpdater} from '@helpers/updateColumnWidths';
+import {canShowRightSidebar, installColumnWidthsUpdater, onRightSidebarAvailabilityChange} from '@helpers/updateColumnWidths';
 import installColumnResize from '@helpers/installColumnResize';
 import animationIntersector from '@components/animationIntersector';
 
@@ -15,6 +15,7 @@ export const RIGHT_COLUMN_ACTIVE_CLASSNAME = 'is-right-column-shown';
 
 export class AppSidebarRight extends SidebarSlider {
   public sharedMediaTab: AppSharedMediaTab;
+  private disposeAvailabilityListener: () => void;
   // public rect: DOMRect;
 
   constructor() {
@@ -37,6 +38,12 @@ export class AppSidebarRight extends SidebarSlider {
     });
 
     installColumnWidthsUpdater();
+    this.disposeAvailabilityListener?.();
+    this.disposeAvailabilityListener = onRightSidebarAvailabilityChange((available) => {
+      if(!available && document.body.classList.contains(RIGHT_COLUMN_ACTIVE_CLASSNAME)) {
+        this.toggleSidebar(false, false);
+      }
+    });
     installColumnResize({columnEl: this.sidebarEl, side: 'right'});
   }
 
@@ -103,6 +110,7 @@ export class AppSidebarRight extends SidebarSlider {
 
   public toggleSidebar(enable?: boolean, animate?: boolean) {
     const active = document.body.classList.contains(RIGHT_COLUMN_ACTIVE_CLASSNAME);
+    if(!active && enable !== false && !canShowRightSidebar()) return Promise.resolve();
     let willChange: boolean;
     if(enable !== undefined) {
       if(enable) {
