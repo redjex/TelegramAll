@@ -1,7 +1,6 @@
 package org.telegramall.app;
 
 import android.os.Bundle;
-import android.util.DisplayMetrics;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -10,14 +9,43 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsAnimationCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.core.view.WindowInsetsCompat;
+
+import java.util.List;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
   // the system bars' sizes in CSS px: top, bottom, left, right
   private float[] insets = new float[]{0, 0, 0, 0};
+
+  private View contentView;
+  private WebView pageView;
+  private float density = 1;
+  private Insets bars = Insets.NONE;
+  // the keyboard is sliding in or out: the page follows it frame by frame
+  private boolean keyboardMoving = false;
+  private int shownKeyboard = -1;
+
+  /**
+   * Sets the bottom of the view and the sizes of the bars for a keyboard height (px). It is done at every frame of the
+   * keyboard's own animation, so the page grows and shrinks with it instead of jumping to the end at once.
+   */
+  private void applyKeyboard(int imeBottom) {
+    if(imeBottom == shownKeyboard) return;
+    shownKeyboard = imeBottom;
+    contentView.setPadding(0, 0, 0, imeBottom);
+    // the gesture strip is under the keyboard while it is up: its room goes as the keyboard rises over it
+    insets = new float[]{
+      bars.top / density,
+      Math.max(0, bars.bottom - imeBottom) / density,
+      bars.left / density,
+      bars.right / density
+    };
+    pushInsets(pageView);
+  }
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -30,21 +58,47 @@ public class MainActivity extends BridgeActivity {
     final View content = findViewById(android.R.id.content);
     final WebView webView = getBridge().getWebView();
 
-    ViewCompat.setOnApplyWindowInsetsListener(content, (view, windowInsets) -> {
-      Insets bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-      Insets ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
-      boolean keyboard = ime.bottom > bars.bottom;
-      view.setPadding(0, 0, 0, keyboard ? ime.bottom : 0);
+    contentView = content;
+    pageView = webView;
+    density = getResources().getDisplayMetrics().density;
 
-      DisplayMetrics metrics = getResources().getDisplayMetrics();
-      insets = new float[]{
-        bars.top / metrics.density,
-        keyboard ? 0 : bars.bottom / metrics.density,
-        bars.left / metrics.density,
-        bars.right / metrics.density
-      };
-      pushInsets(webView);
+    ViewCompat.setOnApplyWindowInsetsListener(content, (view, windowInsets) -> {
+      bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+      // while the keyboard moves, its animation sets the bottom (below), not the end of it that this reports at the start
+      if(!keyboardMoving) {
+        Insets ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+        shownKeyboard = -1;
+        applyKeyboard(ime.bottom > bars.bottom ? ime.bottom : 0);
+      }
+
       return WindowInsetsCompat.CONSUMED;
+    });
+
+    ViewCompat.setWindowInsetsAnimationCallback(getWindow().getDecorView(), new WindowInsetsAnimationCompat.Callback(
+      WindowInsetsAnimationCompat.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE
+    ) {
+      @Override
+      public void onPrepare(WindowInsetsAnimationCompat animation) {
+        if((animation.getTypeMask() & WindowInsetsCompat.Type.ime()) != 0) keyboardMoving = true;
+      }
+
+      @Override
+      public WindowInsetsCompat onProgress(WindowInsetsCompat windowInsets, List<WindowInsetsAnimationCompat> running) {
+        if(keyboardMoving) applyKeyboard(windowInsets.getInsets(WindowInsetsCompat.Type.ime()).bottom);
+        return windowInsets;
+      }
+
+      @Override
+      public void onEnd(WindowInsetsAnimationCompat animation) {
+        if((animation.getTypeMask() & WindowInsetsCompat.Type.ime()) == 0) return;
+        keyboardMoving = false;
+        WindowInsetsCompat last = ViewCompat.getRootWindowInsets(content);
+        if(last != null) {
+          int bottom = last.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+          shownKeyboard = -1;
+          applyKeyboard(bottom > bars.bottom ? bottom : 0);
+        }
+      }
     });
 
     // the system back gesture / button closes the open screen first, and only from the chat list leaves

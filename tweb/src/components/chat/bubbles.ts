@@ -1783,6 +1783,16 @@ export default class ChatBubbles {
     this.setScroll();
 
     container.append(removerContainer, this.scrollable.container, floatingSeparatorsContainer);
+
+    // Android: the messages blur out under the top bar and the input: one blurred backdrop at each edge, faded out by a smooth
+    // gradient mask (an element of its own: gooey layers and the like are not involved)
+    if(IS_ANDROID && !this.chat.isPreview) {
+      for(const side of ['top', 'bottom']) {
+        const edge = document.createElement('div');
+        edge.classList.add('android-edge-blur', side);
+        container.append(edge);
+      }
+    }
   }
 
   public attachContainerListeners() {

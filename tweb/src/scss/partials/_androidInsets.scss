@@ -43,29 +43,29 @@ html.is-android {
     mask-image: none;
   }
 
-  .bubbles::before,
-  .bubbles::after {
-    content: "";
+  // the blur under the top bar and the input: one blurred backdrop at each edge, faded out by one smooth gradient
+  .android-edge-blur {
     position: absolute;
     z-index: 1;
     inset-inline: 0;
     pointer-events: none;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-  }
+    -webkit-backdrop-filter: blur(7px);
+    backdrop-filter: blur(7px);
 
-  .bubbles::before {
-    top: 0;
-    height: calc(var(--chat-padding-top) + .5rem);
-    mask-image: linear-gradient(to bottom, #000 40%, transparent);
-    -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
-  }
+    &.top {
+      top: 0;
+      height: calc(var(--chat-padding-top) + .5rem);
+      // the mask is eased (strong at the edge, no kink where it dies out)
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .9) 18%, rgba(0, 0, 0, .66) 42%, rgba(0, 0, 0, .34) 66%, rgba(0, 0, 0, .12) 84%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, .9) 18%, rgba(0, 0, 0, .66) 42%, rgba(0, 0, 0, .34) 66%, rgba(0, 0, 0, .12) 84%, transparent 100%);
+    }
 
-  .bubbles::after {
-    bottom: 0;
-    height: calc(var(--chat-input-height) + var(--page-chats-padding) + var(--chat-input-height-surplus) + var(--sab) + .75rem);
-    mask-image: linear-gradient(to top, #000 40%, transparent);
-    -webkit-mask-image: linear-gradient(to top, #000 40%, transparent);
+    &.bottom {
+      bottom: 0;
+      height: calc(var(--chat-input-height) + var(--page-chats-padding) + var(--chat-input-height-surplus) + var(--sab) + .75rem);
+      -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, .9) 18%, rgba(0, 0, 0, .66) 42%, rgba(0, 0, 0, .34) 66%, rgba(0, 0, 0, .12) 84%, transparent 100%);
+      mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, .9) 18%, rgba(0, 0, 0, .66) 42%, rgba(0, 0, 0, .34) 66%, rgba(0, 0, 0, .12) 84%, transparent 100%);
+    }
   }
 
   // lists end above the gesture bar, but draw under it

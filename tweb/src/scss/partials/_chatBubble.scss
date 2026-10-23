@@ -4174,3 +4174,62 @@
     cursor: pointer;
   }
 }
+
+// Experimental setting "own messages on the left": outgoing bubbles keep their colours but are laid out
+// like incoming ones (left edge, mirrored corners and tail).
+html.own-messages-left .bubble.is-out {
+  flex-direction: row;
+  --border-start-start-radius: #{$bubble-border-radius-medium};
+  --border-start-end-radius: #{$bubble-border-radius-big};
+  --border-end-end-radius: #{$bubble-border-radius-big};
+  --border-end-start-radius: #{$bubble-border-radius-medium};
+
+  .bubble-content {
+    margin-inline-start: 0;
+
+    &-wrapper.can-zoom-fade {
+      transform-origin: var(--transform-origin-left-center);
+    }
+  }
+
+  &.is-group-first, &.is-forced-rounded {
+    --border-start-start-radius: #{$bubble-border-radius-big};
+    --border-start-end-radius: #{$bubble-border-radius-big};
+  }
+
+  &.is-group-last, &.is-forced-rounded {
+    &.can-have-tail {
+      --border-end-end-radius: #{$bubble-border-radius-big} !important;
+      --border-end-start-radius: 0 !important;
+
+      .bubble-tail {
+        inset-inline-end: auto;
+        margin-inline-start: -8.4px;
+        transform: translateY(1px) scaleX(var(--reflect));
+      }
+
+      &.has-plain-media-tail .attachment {
+        border-end-end-radius: 0;
+        border-end-start-radius: $bubble-border-radius-big;
+      }
+    }
+
+    &:not(.can-have-tail) {
+      --border-end-start-radius: #{$bubble-border-radius-big};
+    }
+  }
+
+  &.just-media .floating-part {
+    inset-inline-end: auto;
+    inset-inline-start: calc(100% + 10px);
+  }
+
+  .time-inner {
+    margin-inline-end: 0;
+  }
+}
+
+html.own-messages-left .bubble.has-fake-service.is-out,
+html.own-messages-left .bubble.has-chat-thread-separator.is-out {
+  align-items: flex-start;
+}

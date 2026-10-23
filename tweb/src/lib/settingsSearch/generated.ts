@@ -204,6 +204,7 @@ const generated: GeneratedSettingsSearchData = {
     {id: 'AppGeneralSettingsTab:General.TimeFormat.h23', sectionId: 'AppGeneralSettingsTab', kind: 'option', titleLangKey: 'General.TimeFormat.h23'},
     {id: 'AppGeneralSettingsTab:GeneralSettings.Experimental', sectionId: 'AppGeneralSettingsTab', kind: 'subsection', titleLangKey: 'GeneralSettings.Experimental'},
     {id: 'AppGeneralSettingsTab:GeneralSettings.IncreaseContrast', sectionId: 'AppGeneralSettingsTab', kind: 'toggle', titleLangKey: 'GeneralSettings.IncreaseContrast'},
+    {id: 'AppGeneralSettingsTab:GeneralSettings.OwnMessagesLeft', sectionId: 'AppGeneralSettingsTab', kind: 'toggle', titleLangKey: 'GeneralSettings.OwnMessagesLeft'},
     {id: 'AppGeneralSettingsTab:GeneralSettings.ShowTlSchema', sectionId: 'AppGeneralSettingsTab', kind: 'toggle', titleLangKey: 'GeneralSettings.ShowTlSchema'},
     {id: 'AppGeneralSettingsTab:LiteMode.EnableText', sectionId: 'AppGeneralSettingsTab', kind: 'row', titleLangKey: 'LiteMode.EnableText'},
     {id: 'AppGeneralSettingsTab:Settings', sectionId: 'AppGeneralSettingsTab', kind: 'subsection', titleLangKey: 'Settings'},

@@ -33,6 +33,20 @@
     ],
     "extraResources": [
       {
+        "from": "../tweb/public",
+        "to": "dist",
+        "filter": [
+          "assets/**/*",
+          "changelogs/**/*",
+          "decoderWorker.min.wasm",
+          "encoderWorker.min.wasm",
+          "site.webmanifest",
+          "site_apple.webmanifest",
+          "browserconfig.xml",
+          "version"
+        ]
+      },
+      {
         "from": "../tweb/dist",
         "to": "dist",
         "filter": [
